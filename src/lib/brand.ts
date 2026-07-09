@@ -7,6 +7,8 @@ export interface Brand {
   bg: string;
   accent: string;
   text: string;
+  /** ロゴ画像。config 読込時はファイルパス、Remotion に渡る時点では staticFile 名 */
+  logo?: string;
 }
 
 const COLOR_KEYS = ["bg", "accent", "text"] as const;
@@ -27,6 +29,9 @@ export const parseBrand = (value: unknown): Brand => {
     if (!HEX.test(record[key] as string)) {
       throw new Error(`brand config: "${key}" must be a hex color like #1E293B`);
     }
+  }
+  if (record.logo !== undefined && (typeof record.logo !== "string" || record.logo === "")) {
+    throw new Error('brand config: "logo" must be a non-empty string (path to an image file)');
   }
   return record as unknown as Brand;
 };

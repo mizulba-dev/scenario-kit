@@ -26,6 +26,18 @@ describe("parseConfig", () => {
     expect(config.scenariosDir).toBe(join("/proj/scenario-kit", "scenarios"));
   });
 
+  it("resolves brand.logo relative to the config directory and keeps an absolute one", () => {
+    const relative = parseConfig("/proj/scenario-kit", {
+      brand: { ...validBrand, logo: "assets/logo.png" },
+    });
+    expect(relative.brand.logo).toBe(join("/proj/scenario-kit", "assets/logo.png"));
+
+    const absolute = parseConfig("/proj/scenario-kit", {
+      brand: { ...validBrand, logo: "/shared/logo.svg" },
+    });
+    expect(absolute.brand.logo).toBe("/shared/logo.svg");
+  });
+
   it("resolves outDir and storageState relative to the config directory", () => {
     const config = parseConfig("/proj/scenario-kit", {
       brand: validBrand,

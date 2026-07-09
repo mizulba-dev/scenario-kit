@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import {
   AbsoluteFill,
+  Img,
   OffthreadVideo,
   Sequence,
   interpolate,
@@ -22,23 +23,30 @@ const fontFamily = "ui-sans-serif, -apple-system, sans-serif";
 
 const Wordmark: React.FC<{ brand: Brand; size?: number }> = ({ brand, size = 96 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-    <div
-      style={{
-        width: size * 0.9,
-        height: size * 0.9,
-        borderRadius: size * 0.22,
-        background: brand.accent,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#fff",
-        fontSize: size * 0.52,
-        fontWeight: 800,
-        fontFamily,
-      }}
-    >
-      {brand.name.charAt(0)}
-    </div>
+    {brand.logo ? (
+      <Img
+        src={staticFile(brand.logo)}
+        style={{ height: size * 0.9, width: "auto", display: "block" }}
+      />
+    ) : (
+      <div
+        style={{
+          width: size * 0.9,
+          height: size * 0.9,
+          borderRadius: size * 0.22,
+          background: brand.accent,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontSize: size * 0.52,
+          fontWeight: 800,
+          fontFamily,
+        }}
+      >
+        {brand.name.charAt(0)}
+      </div>
+    )}
     <div
       style={{
         color: brand.text,

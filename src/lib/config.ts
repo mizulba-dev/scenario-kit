@@ -58,6 +58,9 @@ export const parseConfig = (dir: string, value: unknown): ScenarioKitConfig => {
       `scenario-kit/config.json: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+  if (brand.logo) {
+    brand = { ...brand, logo: resolveRelative(dir, brand.logo) };
+  }
 
   if (record.outDir !== undefined && typeof record.outDir !== "string") {
     throw new UserError('scenario-kit/config.json: "outDir" must be a string');

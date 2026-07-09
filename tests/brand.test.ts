@@ -30,4 +30,10 @@ describe("parseBrand", () => {
     expect(() => parseBrand({ ...valid, bg: "navy" })).toThrow('"bg"');
     expect(() => parseBrand({ ...valid, accent: "#12345" })).toThrow('"accent"');
   });
+
+  it("accepts an optional logo path and rejects an empty one", () => {
+    expect(parseBrand({ ...valid, logo: "logo.png" })).toEqual({ ...valid, logo: "logo.png" });
+    expect(() => parseBrand({ ...valid, logo: "" })).toThrow('"logo"');
+    expect(() => parseBrand({ ...valid, logo: 1 })).toThrow('"logo"');
+  });
 });

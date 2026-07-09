@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { extname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { assertFfmpegAvailable, convertToMp4, probeDuration } from "./lib/ffmpeg";
 import { loadConfig } from "./lib/config";
@@ -102,11 +102,25 @@ const runRender = async (args: string[]): Promise<number> => {
   convertToMp4(webm, mp4);
   const durationSec = probeDuration(mp4);
 
+  // Remotion は publicDir 基準の staticFile しか参照できないため、ロゴをコピーして
+  // brand.logo をファイルパスから staticFile 名に差し替える
+  let brand = config.brand;
+  if (brand.logo) {
+    if (!existsSync(brand.logo)) {
+      throw new UserError(
+        `logo not found: ${brand.logo} ("brand.logo" in scenario-kit/config.json)`,
+      );
+    }
+    const logoName = `logo${extname(brand.logo)}`;
+    copyFileSync(brand.logo, join(publicDir, logoName));
+    brand = { ...brand, logo: logoName };
+  }
+
   const outFile = join(config.outDir, `${name}-demo.mp4`);
   await renderDemo({
     srcName: `${name}.mp4`,
     durationSec,
-    brand: config.brand,
+    brand,
     publicDir,
     outFile,
   });
