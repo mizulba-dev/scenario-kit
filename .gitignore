@@ -3,3 +3,11 @@ dist/
 out/
 *.log
 *.tgz
+
+.agents/
+
+.claude/
+CLAUDE.md
+
+.codex/
+AGENTS.md
