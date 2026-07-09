@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "record": "tsx src/scenarios/paput.ts",
+    "record": "tsx src/scripts/record.ts",
     "render": "tsx src/scripts/render.ts",
     "studio": "remotion studio src/remotion/index.ts",
     "test": "vitest run",
