@@ -4,8 +4,10 @@ import { parseBrand, type Brand } from "./brand";
 import { UserError } from "./errors";
 
 export interface ScenarioKitConfig {
-  /** scenario-kit/config.json が置かれているディレクトリ（シナリオファイルもここから解決する） */
+  /** scenario-kit/config.json が置かれているディレクトリ */
   dir: string;
+  /** シナリオファイル（<name>.json / <name>.ts）を解決するディレクトリ（dir/scenarios 固定） */
+  scenariosDir: string;
   brand: Brand;
   outDir: string;
   storageState?: string;
@@ -69,7 +71,7 @@ export const parseConfig = (dir: string, value: unknown): ScenarioKitConfig => {
     ? resolveRelative(dir, record.storageState as string)
     : undefined;
 
-  return { dir, brand, outDir, storageState };
+  return { dir, scenariosDir: join(dir, "scenarios"), brand, outDir, storageState };
 };
 
 export const loadConfig = (startDir: string = process.cwd()): ScenarioKitConfig => {

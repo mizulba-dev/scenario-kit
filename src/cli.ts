@@ -18,13 +18,13 @@ Usage:
   scenario-kit record <name>       Record a scenario to scenario-kit/out/recordings/<name>.webm
   scenario-kit render <name>       Convert + composite the recording into scenario-kit/out/<name>-demo.mp4
   scenario-kit run <name>          record + render
-  scenario-kit init                Scaffold scenario-kit/ (config.json + landing.json) in the current project
+  scenario-kit init                Scaffold scenario-kit/ (config.json + scenarios/landing.json) in the current project
   scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
   scenario-kit install-skill --user  Install into ~/.claude/skills/scenario-kit/ instead
 
 Looks for scenario-kit/config.json by searching upward from the current directory.
 
-Steps vocabulary (scenario-kit/<name>.json "steps" array, one key per step):
+Steps vocabulary (scenario-kit/scenarios/<name>.json "steps" array, one key per step):
   { "goto": "https://example.com" }        navigate to a URL
   { "click": "text=Sign up" }              click a Playwright locator
   { "type": ["input[name=q]", "hi"] }      type text into a locator
@@ -35,7 +35,7 @@ Steps vocabulary (scenario-kit/<name>.json "steps" array, one key per step):
   { "mark": "hero" }                       record a named timeline marker
 (known step keys: ${STEP_KEYS.join(", ")} - unknown keys are rejected before recording starts)
 
-Example scenario-kit/landing.json:
+Example scenario-kit/scenarios/landing.json:
   {
     "$schema": "https://unpkg.com/scenario-kit/schema/scenario.schema.json",
     "steps": [
@@ -67,7 +67,7 @@ const requireName = (args: string[]): string => {
 const runRecord = async (args: string[]): Promise<number> => {
   const name = requireName(args);
   const config = loadConfig();
-  const scenario = await loadScenario(config.dir, name);
+  const scenario = await loadScenario(config.scenariosDir, name);
 
   const { page, mark, finish } = await startRecording({
     dir: join(config.outDir, "recordings"),

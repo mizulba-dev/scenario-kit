@@ -21,6 +21,11 @@ describe("parseConfig", () => {
     expect(config.brand).toEqual(validBrand);
   });
 
+  it("derives scenariosDir as the scenarios/ subdirectory of the config directory", () => {
+    const config = parseConfig("/proj/scenario-kit", { brand: validBrand });
+    expect(config.scenariosDir).toBe(join("/proj/scenario-kit", "scenarios"));
+  });
+
   it("resolves outDir and storageState relative to the config directory", () => {
     const config = parseConfig("/proj/scenario-kit", {
       brand: validBrand,

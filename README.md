@@ -10,7 +10,7 @@ card. Drive it from a declarative JSON scenario, no code required.
 ## Quick start
 
 ```bash
-npx scenario-kit init             # scaffold scenario-kit/config.json + scenario-kit/landing.json
+npx scenario-kit init             # scaffold scenario-kit/config.json + scenario-kit/scenarios/landing.json
 npx playwright install chromium   # once per machine
 npx scenario-kit run landing      # record + render -> scenario-kit/out/landing-demo.mp4
 ```
@@ -25,7 +25,8 @@ Everything lives in a `scenario-kit/` directory at your project root:
 ```
 scenario-kit/
   config.json     brand + output settings
-  landing.json    a recording scenario (add more: scenario-kit/<name>.json)
+  scenarios/
+    landing.json  a recording scenario (add more: scenario-kit/scenarios/<name>.json)
   out/            generated recordings and mp4s (gitignored by init)
 ```
 
@@ -41,7 +42,7 @@ scenario-kit/
 
 ## Writing a scenario
 
-`scenario-kit/<name>.json` has a `steps` array. Each step is a single-key object:
+`scenario-kit/scenarios/<name>.json` has a `steps` array. Each step is a single-key object:
 
 | step | argument | effect |
 | --- | --- | --- |
@@ -61,7 +62,7 @@ starts. See `npx scenario-kit --help` for the full reference, or
 validation and autocomplete (referenced by the `$schema` field `init`
 writes into `landing.json`).
 
-For interactions the JSON vocabulary can't express, write `scenario-kit/<name>.ts`
+For interactions the JSON vocabulary can't express, write `scenario-kit/scenarios/<name>.ts`
 instead (resolved when no matching `<name>.json` exists). It just needs a
 default-exported async function — no import of `scenario-kit` required, so this
 works with `npx scenario-kit` alone, even when your project has no dependency on

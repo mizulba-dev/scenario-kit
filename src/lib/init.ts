@@ -21,7 +21,8 @@ export const runInit = (options: InitOptions = {}): string => {
     version: string;
   };
 
-  mkdirSync(targetDir, { recursive: true });
+  const scenariosDir = join(targetDir, "scenarios");
+  mkdirSync(scenariosDir, { recursive: true });
 
   writeFileSync(configPath, readFileSync(join(templatesDir, "config.json"), "utf8"));
 
@@ -32,7 +33,7 @@ export const runInit = (options: InitOptions = {}): string => {
     $schema: `https://unpkg.com/scenario-kit@${pkg.version}/schema/scenario.schema.json`,
     ...landingTemplate,
   };
-  writeFileSync(join(targetDir, "landing.json"), `${JSON.stringify(landing, null, 2)}\n`);
+  writeFileSync(join(scenariosDir, "landing.json"), `${JSON.stringify(landing, null, 2)}\n`);
 
   writeFileSync(
     join(targetDir, ".gitignore"),

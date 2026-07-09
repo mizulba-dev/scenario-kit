@@ -15,8 +15,9 @@ root:
 
 ```
 scenario-kit/
-  config.json     brand + output settings
-  <name>.json      one or more recording scenarios
+  config.json      brand + output settings
+  scenarios/
+    <name>.json    one or more recording scenarios
   out/             generated recordings and mp4s (gitignored)
 ```
 
@@ -35,8 +36,9 @@ once per machine.
 
 ## Writing a scenario
 
-A scenario is a JSON file next to `config.json` (e.g. `scenario-kit/landing.json`)
-with a `steps` array. Each step is a single-key object:
+A scenario is a JSON file in `scenario-kit/scenarios/` (e.g.
+`scenario-kit/scenarios/landing.json`) with a `steps` array. Each step is a
+single-key object:
 
 | step      | argument          | effect                         |
 | --------- | ----------------- | ------------------------------ |
@@ -52,7 +54,7 @@ with a `steps` array. Each step is a single-key object:
 `locator` is any Playwright locator string (e.g. `text=Get started`,
 `#hero`, `[data-testid=cta]`).
 
-Example `scenario-kit/landing.json`:
+Example `scenario-kit/scenarios/landing.json`:
 
 ```json
 {
@@ -74,8 +76,8 @@ autocomplete for the steps above — write scenarios by hand or generate them,
 then run `npx scenario-kit run <name>` to check the result.
 
 For scripted interactions the JSON vocabulary can't express, use a
-`<name>.ts` scenario instead (`scenario-kit/landing.ts`, resolved when no
-`<name>.json` exists). A plain default-exported async function is enough —
+`<name>.ts` scenario instead (`scenario-kit/scenarios/landing.ts`, resolved
+when no `<name>.json` exists). A plain default-exported async function is enough —
 no import of `scenario-kit` required, so this works with `npx scenario-kit` alone:
 
 ```ts
