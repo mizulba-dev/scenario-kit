@@ -1,43 +1,114 @@
-# demo-video
+# demoreel
 
-製品紹介デモ動画をコードから再生成するパイプライン。シナリオ（Playwright）が製品 UI を操作しながら録画し、Remotion がブランド背景・角丸ウィンドウフレーム・イントロ/アウトロカードを合成して mp4 を出力する。UI が変わってもシナリオ再実行で最新の動画を作り直せる。
+Record a product demo with a real browser (Playwright), then composite it
+into a branded mp4 (Remotion) — intro card, rounded browser window, outro
+card. Drive it from a declarative JSON scenario, no code required.
 
-見た目の参照は Claude 公式コネクタ紹介動画の型（単色ブランド背景・角丸ウィンドウ・カーソル常時可視・1カット3〜5秒）。
+> First run downloads a Chrome build for rendering and, if needed, Chromium
+> for Playwright — expect a multi-hundred-MB one-time download.
 
-## 使い方
+## Quick start
 
 ```bash
-npm run record            # シナリオを実行して out/recordings/<name>.webm を録画
-npm run render -- paput   # 変換・合成して out/<name>-demo.mp4 を出力
-npm run studio            # Remotion Studio でコンポジションをプレビュー
-npm test                  # ユニットテスト
-npm run typecheck
+npx demoreel init             # scaffold demoreel/config.json + demoreel/landing.json
+npx playwright install chromium   # once per machine
+npx demoreel run landing      # record + render -> demoreel/out/landing-demo.mp4
 ```
 
-初回のみ `npx playwright install chromium` が必要。ffmpeg / ffprobe が PATH にあること。
+`ffmpeg` and `ffprobe` must be on `PATH` (used to convert the Playwright
+recording to h264 before compositing).
 
-## 構成
+## Project layout
+
+Everything lives in a `demoreel/` directory at your project root:
 
 ```
-brand/<name>.json      ブランド設定（色・ロゴ文字・タグライン・URL）。製品ごとに追加
-src/scenarios/<name>.ts  録画シナリオ。startRecording() で擬似カーソル・クリック記録付きの page を得る
-src/lib/               recorder / cursor / brand / ffmpeg / timing（テスト対象）
-src/remotion/          コンポジション（イントロ → ウィンドウフレーム → アウトロ）
-src/scripts/render.ts  webm→mp4 変換 → 尺計測 → Remotion レンダリング
-out/                   録画・イベントログ・完成動画（git 管理外）
+demoreel/
+  config.json     brand + output settings
+  landing.json    a recording scenario (add more: demoreel/<name>.json)
+  out/            generated recordings and mp4s (gitignored by init)
 ```
 
-## 前提としている実測知見
+`demoreel/config.json`:
 
-- Playwright の recordVideo にはカーソルが映らない → `installCursor` を addInitScript で注入
-- Playwright の webm は duration メタデータを持たないことがある → h264 mp4 に変換してから ffprobe で尺を取る
-- カットのテンポは合成側では直せない → シナリオ側の待機時間で調整する
-- クリック座標は `out/recordings/<name>-events.json` に記録される（将来のクリック連動ズーム用）
+```jsonc
+{
+  "brand": { "name": "...", "tagline": "...", "url": "...", "bg": "#1E293B", "accent": "#6366F1", "text": "#F8FAFC" },
+  "outDir": "out",                    // optional, default "out" (relative to demoreel/)
+  "storageState": ".auth/state.json"  // optional, a Playwright storageState file for logged-in demos
+}
+```
 
-## 新しい製品・シナリオの追加
+## Writing a scenario
 
-1. `brand/<name>.json` を作る（bg / accent / text は hex 6桁）
-2. `src/scenarios/<name>.ts` を書く（paput.ts を雛形に）
-3. `npm run record -- <name> && npm run render -- <name>`
+`demoreel/<name>.json` has a `steps` array. Each step is a single-key object:
 
-ログインが必要な画面は録画専用アカウント + `storageState` を使う（実データ・トークン・顧客情報を映さない）。
+| step | argument | effect |
+| --- | --- | --- |
+| `goto` | url | navigate to a URL |
+| `click` | locator | click a Playwright locator |
+| `type` | `[locator, text]` | type text into a locator |
+| `move` | `[x, y]` | move the mouse cursor |
+| `scroll` | y | smooth-scroll to a Y offset |
+| `pause` | ms | wait |
+| `waitFor` | locator | wait for a locator to appear |
+| `mark` | label | record a named timeline marker |
+
+`locator` is any Playwright locator string (`text=Get started`, `#hero`,
+`[data-testid=cta]`, ...). Unknown step keys are rejected before recording
+starts. See `npx demoreel --help` for the full reference, or
+[`schema/scenario.schema.json`](./schema/scenario.schema.json) for editor
+validation and autocomplete (referenced by the `$schema` field `init`
+writes into `landing.json`).
+
+For interactions the JSON vocabulary can't express, write `demoreel/<name>.ts`
+instead (resolved when no matching `<name>.json` exists). It just needs a
+default-exported async function — no import of `demoreel` required, so this
+works with `npx demoreel` alone, even when your project has no dependency on
+`demoreel`:
+
+```ts
+export default async ({ page, mark }) => {
+  await page.goto('https://example.com');
+  mark('hero');
+};
+```
+
+If `demoreel` is a dependency of your project, wrap it in `defineScenario`
+for typed `page`/`mark` parameters — it's an identity function, purely for
+type-checking:
+
+```ts
+import { defineScenario } from 'demoreel';
+
+export default defineScenario(async ({ page, mark }) => {
+  await page.goto('https://example.com');
+  mark('hero');
+});
+```
+
+## Commands
+
+```bash
+demoreel init                     scaffold demoreel/ in the current project
+demoreel record <name>            record a scenario to demoreel/out/recordings/<name>.webm
+demoreel render <name>            convert + composite into demoreel/out/<name>-demo.mp4
+demoreel run <name>               record + render
+demoreel install-skill            install the demoreel SKILL.md into .claude/skills/ and .agents/skills/
+demoreel install-skill --user     install into ~/.claude/skills/demoreel/ instead
+demoreel --help                   full command and steps reference
+```
+
+Exit codes: `0` success, `1` invalid config/scenario, `2` runtime failure
+(browser, ffmpeg, or render error).
+
+## AI agent skill
+
+`demoreel install-skill` drops a `SKILL.md` into your project so Claude Code
+/ Codex-style agents can regenerate demo videos on request — it documents
+`npx demoreel` usage and the steps vocabulary, with no bundled scripts.
+
+## Notes
+
+- Not (yet) handled: click-synced zoom, background music, a bundled ffmpeg,
+  Windows.

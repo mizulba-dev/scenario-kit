@@ -1,0 +1,10 @@
+{
+  "brand": {
+    "name": "Your Product",
+    "tagline": "One line that explains what it does",
+    "url": "example.com",
+    "bg": "#1E293B",
+    "accent": "#6366F1",
+    "text": "#F8FAFC"
+  }
+}

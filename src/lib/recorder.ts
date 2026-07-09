@@ -1,11 +1,11 @@
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
-import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { installCursor } from './cursor';
+import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { installCursor } from "./cursor";
 
 export interface DemoEvent {
   t: number;
-  type: 'mark' | 'click';
+  type: "mark" | "click";
   label?: string;
   x?: number;
   y?: number;
@@ -22,18 +22,19 @@ export interface RecorderOptions {
   name: string;
   viewport?: { width: number; height: number };
   locale?: string;
+  storageState?: string;
 }
 
 const reportClicks = () => {
   window.addEventListener(
-    'mousedown',
+    "mousedown",
     (e) => {
       const report = (window as unknown as Record<string, unknown>).__demoEvent as
         | ((ev: { type: string; x: number; y: number }) => void)
         | undefined;
-      report?.({ type: 'click', x: e.clientX, y: e.clientY });
+      report?.({ type: "click", x: e.clientX, y: e.clientY });
     },
-    true
+    true,
   );
 };
 
@@ -46,13 +47,17 @@ export const startRecording = async (options: RecorderOptions): Promise<Recordin
     viewport,
     deviceScaleFactor: 2,
     recordVideo: { dir: options.dir, size: viewport },
-    locale: options.locale ?? 'ja-JP',
+    locale: options.locale ?? "ja-JP",
+    storageState: options.storageState,
   });
 
   const events: DemoEvent[] = [];
-  await context.exposeBinding('__demoEvent', (_source, ev: { type: string; x: number; y: number }) => {
-    events.push({ t: Date.now(), type: 'click', x: ev.x, y: ev.y });
-  });
+  await context.exposeBinding(
+    "__demoEvent",
+    (_source, ev: { type: string; x: number; y: number }) => {
+      events.push({ t: Date.now(), type: "click", x: ev.x, y: ev.y });
+    },
+  );
   await context.addInitScript(installCursor);
   await context.addInitScript(reportClicks);
 
@@ -60,7 +65,7 @@ export const startRecording = async (options: RecorderOptions): Promise<Recordin
 
   return {
     page,
-    mark: (label: string) => events.push({ t: Date.now(), type: 'mark', label }),
+    mark: (label: string) => events.push({ t: Date.now(), type: "mark", label }),
     finish: async () => {
       const video = page.video();
       await context.close();

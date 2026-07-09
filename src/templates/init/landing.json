@@ -1,0 +1,12 @@
+{
+  "steps": [
+    { "goto": "https://example.com" },
+    { "move": [720, 400] },
+    { "pause": 1000 },
+    { "mark": "hero" },
+    { "move": [900, 550] },
+    { "scroll": 800 },
+    { "mark": "section-1" },
+    { "pause": 500 }
+  ]
+}

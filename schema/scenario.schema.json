@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "demoreel scenario",
+  "description": "A declarative Playwright recording scenario for demoreel (demoreel/<name>.json).",
+  "type": "object",
+  "required": ["steps"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" }
+    }
+  },
+  "definitions": {
+    "step": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "goto": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Navigate to a URL."
+        },
+        "click": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Click a Playwright locator string."
+        },
+        "type": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            { "type": "string", "minLength": 1, "description": "Playwright locator string." },
+            { "type": "string", "minLength": 1, "description": "Text to type." }
+          ],
+          "description": "[locator, text] - types text into a locator, one key at a time."
+        },
+        "move": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            { "type": "number", "description": "x coordinate." },
+            { "type": "number", "description": "y coordinate." }
+          ],
+          "description": "[x, y] - moves the mouse cursor."
+        },
+        "scroll": {
+          "type": "number",
+          "description": "Smooth-scrolls the page to this Y offset."
+        },
+        "pause": {
+          "type": "number",
+          "description": "Waits this many milliseconds."
+        },
+        "waitFor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Waits for a Playwright locator string to appear."
+        },
+        "mark": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Records a named timeline marker in the recording's events log."
+        }
+      }
+    }
+  }
+}
