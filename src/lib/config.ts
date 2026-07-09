@@ -3,15 +3,15 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { parseBrand, type Brand } from "./brand";
 import { UserError } from "./errors";
 
-export interface DemoreelConfig {
-  /** demoreel/config.json が置かれているディレクトリ（シナリオファイルもここから解決する） */
+export interface ScenarioKitConfig {
+  /** scenario-kit/config.json が置かれているディレクトリ（シナリオファイルもここから解決する） */
   dir: string;
   brand: Brand;
   outDir: string;
   storageState?: string;
 }
 
-const CONFIG_RELATIVE_PATH = join("demoreel", "config.json");
+const CONFIG_RELATIVE_PATH = join("scenario-kit", "config.json");
 
 export const findConfigPath = (startDir: string): string => {
   let dir = resolve(startDir);
@@ -21,7 +21,7 @@ export const findConfigPath = (startDir: string): string => {
     const parent = dirname(dir);
     if (parent === dir) {
       throw new UserError(
-        `demoreel/config.json not found (searched upward from ${resolve(startDir)}). Run "demoreel init" first.`,
+        `scenario-kit/config.json not found (searched upward from ${resolve(startDir)}). Run "scenario-kit init" first.`,
       );
     }
     dir = parent;
@@ -33,9 +33,9 @@ const resolveRelative = (dir: string, value: string): string =>
 
 const CONFIG_TOP_LEVEL_KEYS = ["brand", "outDir", "storageState"] as const;
 
-export const parseConfig = (dir: string, value: unknown): DemoreelConfig => {
+export const parseConfig = (dir: string, value: unknown): ScenarioKitConfig => {
   if (typeof value !== "object" || value === null) {
-    throw new UserError("demoreel/config.json must be an object");
+    throw new UserError("scenario-kit/config.json must be an object");
   }
   const record = value as Record<string, unknown>;
 
@@ -44,7 +44,7 @@ export const parseConfig = (dir: string, value: unknown): DemoreelConfig => {
   );
   if (unknownKeys.length > 0) {
     throw new UserError(
-      `demoreel/config.json: unknown key(s) ${unknownKeys.map((key) => JSON.stringify(key)).join(", ")} (expected only ${CONFIG_TOP_LEVEL_KEYS.join(", ")})`,
+      `scenario-kit/config.json: unknown key(s) ${unknownKeys.map((key) => JSON.stringify(key)).join(", ")} (expected only ${CONFIG_TOP_LEVEL_KEYS.join(", ")})`,
     );
   }
 
@@ -53,17 +53,17 @@ export const parseConfig = (dir: string, value: unknown): DemoreelConfig => {
     brand = parseBrand(record.brand);
   } catch (err) {
     throw new UserError(
-      `demoreel/config.json: ${err instanceof Error ? err.message : String(err)}`,
+      `scenario-kit/config.json: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
   if (record.outDir !== undefined && typeof record.outDir !== "string") {
-    throw new UserError('demoreel/config.json: "outDir" must be a string');
+    throw new UserError('scenario-kit/config.json: "outDir" must be a string');
   }
   const outDir = resolveRelative(dir, (record.outDir as string | undefined) ?? "out");
 
   if (record.storageState !== undefined && typeof record.storageState !== "string") {
-    throw new UserError('demoreel/config.json: "storageState" must be a string');
+    throw new UserError('scenario-kit/config.json: "storageState" must be a string');
   }
   const storageState = record.storageState
     ? resolveRelative(dir, record.storageState as string)
@@ -72,7 +72,7 @@ export const parseConfig = (dir: string, value: unknown): DemoreelConfig => {
   return { dir, brand, outDir, storageState };
 };
 
-export const loadConfig = (startDir: string = process.cwd()): DemoreelConfig => {
+export const loadConfig = (startDir: string = process.cwd()): ScenarioKitConfig => {
   const configPath = findConfigPath(startDir);
   const dir = dirname(configPath);
   let value: unknown;

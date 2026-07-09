@@ -11,14 +11,14 @@ export const findPackageRoot = (fromModuleUrl: string): string => {
     if (existsSync(candidate)) {
       try {
         const pkg = JSON.parse(readFileSync(candidate, "utf8")) as { name?: string };
-        if (pkg.name === "demoreel") return dir;
+        if (pkg.name === "scenario-kit") return dir;
       } catch {
         // 壊れた package.json は無視して上方向に探索を続ける
       }
     }
     const parent = dirname(dir);
     if (parent === dir) {
-      throw new Error(`could not locate the demoreel package root above ${dir}`);
+      throw new Error(`could not locate the scenario-kit package root above ${dir}`);
     }
     dir = parent;
   }

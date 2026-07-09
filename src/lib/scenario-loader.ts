@@ -6,9 +6,9 @@ import { parseScenario, runSteps, type ScenarioContext } from "./steps";
 
 export type ScenarioRunner = (ctx: ScenarioContext) => Promise<void>;
 
-// TS シナリオはプレーンな default export 関数だけで動く（demoreel の import は不要
+// TS シナリオはプレーンな default export 関数だけで動く（scenario-kit の import は不要
 // なので npx 実行のみ・未インストールのプロジェクトでも書ける）。defineScenario は
-// demoreel を devDependencies に持つプロジェクト向けの型補完用の恒等関数
+// scenario-kit を devDependencies に持つプロジェクト向けの型補完用の恒等関数
 export const defineScenario = (runner: ScenarioRunner): ScenarioRunner => runner;
 
 // シナリオ解決順: <name>.json があればそれ、なければ <name>.ts を tsx の tsImport でロード

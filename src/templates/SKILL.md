@@ -1,20 +1,20 @@
 ---
-name: demoreel
-description: Record and regenerate this project's product demo video with demoreel (Playwright recording + Remotion compositing). Use when asked to create, update, or regenerate a demo video, or to add a new demo scenario.
-allowed-tools: Bash(npx demoreel:*)
+name: scenario-kit
+description: Record and regenerate this project's product demo video with scenario-kit (Playwright recording + Remotion compositing). Use when asked to create, update, or regenerate a demo video, or to add a new demo scenario.
+allowed-tools: Bash(npx scenario-kit:*)
 ---
 
-# demoreel
+# scenario-kit
 
-`demoreel` records a product demo by driving a real browser (Playwright), then
+`scenario-kit` records a product demo by driving a real browser (Playwright), then
 composites the recording into a branded mp4 (Remotion): intro card → rounded
 browser window → outro card.
 
-This project's demo config and scenarios live in `demoreel/` at the project
+This project's demo config and scenarios live in `scenario-kit/` at the project
 root:
 
 ```
-demoreel/
+scenario-kit/
   config.json     brand + output settings
   <name>.json      one or more recording scenarios
   out/             generated recordings and mp4s (gitignored)
@@ -23,11 +23,11 @@ demoreel/
 ## Commands
 
 ```bash
-npx demoreel run <name>      # record + render in one step
-npx demoreel record <name>   # record only -> demoreel/out/recordings/<name>.webm
-npx demoreel render <name>   # convert + composite only -> demoreel/out/<name>-demo.mp4
-npx demoreel init            # scaffold demoreel/ in a new project
-npx demoreel --help          # full command and steps reference
+npx scenario-kit run <name>      # record + render in one step
+npx scenario-kit record <name>   # record only -> scenario-kit/out/recordings/<name>.webm
+npx scenario-kit render <name>   # convert + composite only -> scenario-kit/out/<name>-demo.mp4
+npx scenario-kit init            # scaffold scenario-kit/ in a new project
+npx scenario-kit --help          # full command and steps reference
 ```
 
 Requires `ffmpeg`/`ffprobe` on PATH, and `npx playwright install chromium`
@@ -35,7 +35,7 @@ once per machine.
 
 ## Writing a scenario
 
-A scenario is a JSON file next to `config.json` (e.g. `demoreel/landing.json`)
+A scenario is a JSON file next to `config.json` (e.g. `scenario-kit/landing.json`)
 with a `steps` array. Each step is a single-key object:
 
 | step      | argument          | effect                         |
@@ -52,11 +52,11 @@ with a `steps` array. Each step is a single-key object:
 `locator` is any Playwright locator string (e.g. `text=Get started`,
 `#hero`, `[data-testid=cta]`).
 
-Example `demoreel/landing.json`:
+Example `scenario-kit/landing.json`:
 
 ```json
 {
-  "$schema": "https://unpkg.com/demoreel/schema/scenario.schema.json",
+  "$schema": "https://unpkg.com/scenario-kit/schema/scenario.schema.json",
   "steps": [
     { "goto": "https://example.com" },
     { "move": [720, 400] },
@@ -69,14 +69,14 @@ Example `demoreel/landing.json`:
 }
 ```
 
-The `$schema` field (written by `demoreel init`) gives editors validation and
+The `$schema` field (written by `scenario-kit init`) gives editors validation and
 autocomplete for the steps above — write scenarios by hand or generate them,
-then run `npx demoreel run <name>` to check the result.
+then run `npx scenario-kit run <name>` to check the result.
 
 For scripted interactions the JSON vocabulary can't express, use a
-`<name>.ts` scenario instead (`demoreel/landing.ts`, resolved when no
+`<name>.ts` scenario instead (`scenario-kit/landing.ts`, resolved when no
 `<name>.json` exists). A plain default-exported async function is enough —
-no import of `demoreel` required, so this works with `npx demoreel` alone:
+no import of `scenario-kit` required, so this works with `npx scenario-kit` alone:
 
 ```ts
 export default async ({ page, mark }) => {
@@ -85,12 +85,12 @@ export default async ({ page, mark }) => {
 };
 ```
 
-If `demoreel` is a dependency of the project, wrap it in `defineScenario`
+If `scenario-kit` is a dependency of the project, wrap it in `defineScenario`
 for typed `page`/`mark` parameters (an identity function, for type-checking
 only):
 
 ```ts
-import { defineScenario } from "demoreel";
+import { defineScenario } from "scenario-kit";
 
 export default defineScenario(async ({ page, mark }) => {
   await page.goto("https://example.com");

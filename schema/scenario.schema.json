@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "demoreel scenario",
-  "description": "A declarative Playwright recording scenario for demoreel (demoreel/<name>.json).",
+  "title": "scenario-kit scenario",
+  "description": "A declarative Playwright recording scenario for scenario-kit (scenario-kit/<name>.json).",
   "type": "object",
   "required": ["steps"],
   "additionalProperties": false,

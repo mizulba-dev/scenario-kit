@@ -1,4 +1,4 @@
-# demoreel
+# scenario-kit
 
 Record a product demo with a real browser (Playwright), then composite it
 into a branded mp4 (Remotion) — intro card, rounded browser window, outro
@@ -10,9 +10,9 @@ card. Drive it from a declarative JSON scenario, no code required.
 ## Quick start
 
 ```bash
-npx demoreel init             # scaffold demoreel/config.json + demoreel/landing.json
+npx scenario-kit init             # scaffold scenario-kit/config.json + scenario-kit/landing.json
 npx playwright install chromium   # once per machine
-npx demoreel run landing      # record + render -> demoreel/out/landing-demo.mp4
+npx scenario-kit run landing      # record + render -> scenario-kit/out/landing-demo.mp4
 ```
 
 `ffmpeg` and `ffprobe` must be on `PATH` (used to convert the Playwright
@@ -20,28 +20,28 @@ recording to h264 before compositing).
 
 ## Project layout
 
-Everything lives in a `demoreel/` directory at your project root:
+Everything lives in a `scenario-kit/` directory at your project root:
 
 ```
-demoreel/
+scenario-kit/
   config.json     brand + output settings
-  landing.json    a recording scenario (add more: demoreel/<name>.json)
+  landing.json    a recording scenario (add more: scenario-kit/<name>.json)
   out/            generated recordings and mp4s (gitignored by init)
 ```
 
-`demoreel/config.json`:
+`scenario-kit/config.json`:
 
 ```jsonc
 {
   "brand": { "name": "...", "tagline": "...", "url": "...", "bg": "#1E293B", "accent": "#6366F1", "text": "#F8FAFC" },
-  "outDir": "out",                    // optional, default "out" (relative to demoreel/)
+  "outDir": "out",                    // optional, default "out" (relative to scenario-kit/)
   "storageState": ".auth/state.json"  // optional, a Playwright storageState file for logged-in demos
 }
 ```
 
 ## Writing a scenario
 
-`demoreel/<name>.json` has a `steps` array. Each step is a single-key object:
+`scenario-kit/<name>.json` has a `steps` array. Each step is a single-key object:
 
 | step | argument | effect |
 | --- | --- | --- |
@@ -56,16 +56,16 @@ demoreel/
 
 `locator` is any Playwright locator string (`text=Get started`, `#hero`,
 `[data-testid=cta]`, ...). Unknown step keys are rejected before recording
-starts. See `npx demoreel --help` for the full reference, or
+starts. See `npx scenario-kit --help` for the full reference, or
 [`schema/scenario.schema.json`](./schema/scenario.schema.json) for editor
 validation and autocomplete (referenced by the `$schema` field `init`
 writes into `landing.json`).
 
-For interactions the JSON vocabulary can't express, write `demoreel/<name>.ts`
+For interactions the JSON vocabulary can't express, write `scenario-kit/<name>.ts`
 instead (resolved when no matching `<name>.json` exists). It just needs a
-default-exported async function — no import of `demoreel` required, so this
-works with `npx demoreel` alone, even when your project has no dependency on
-`demoreel`:
+default-exported async function — no import of `scenario-kit` required, so this
+works with `npx scenario-kit` alone, even when your project has no dependency on
+`scenario-kit`:
 
 ```ts
 export default async ({ page, mark }) => {
@@ -74,12 +74,12 @@ export default async ({ page, mark }) => {
 };
 ```
 
-If `demoreel` is a dependency of your project, wrap it in `defineScenario`
+If `scenario-kit` is a dependency of your project, wrap it in `defineScenario`
 for typed `page`/`mark` parameters — it's an identity function, purely for
 type-checking:
 
 ```ts
-import { defineScenario } from 'demoreel';
+import { defineScenario } from 'scenario-kit';
 
 export default defineScenario(async ({ page, mark }) => {
   await page.goto('https://example.com');
@@ -90,13 +90,13 @@ export default defineScenario(async ({ page, mark }) => {
 ## Commands
 
 ```bash
-demoreel init                     scaffold demoreel/ in the current project
-demoreel record <name>            record a scenario to demoreel/out/recordings/<name>.webm
-demoreel render <name>            convert + composite into demoreel/out/<name>-demo.mp4
-demoreel run <name>               record + render
-demoreel install-skill            install the demoreel SKILL.md into .claude/skills/ and .agents/skills/
-demoreel install-skill --user     install into ~/.claude/skills/demoreel/ instead
-demoreel --help                   full command and steps reference
+scenario-kit init                     scaffold scenario-kit/ in the current project
+scenario-kit record <name>            record a scenario to scenario-kit/out/recordings/<name>.webm
+scenario-kit render <name>            convert + composite into scenario-kit/out/<name>-demo.mp4
+scenario-kit run <name>               record + render
+scenario-kit install-skill            install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
+scenario-kit install-skill --user     install into ~/.claude/skills/scenario-kit/ instead
+scenario-kit --help                   full command and steps reference
 ```
 
 Exit codes: `0` success, `1` invalid config/scenario, `2` runtime failure
@@ -104,9 +104,9 @@ Exit codes: `0` success, `1` invalid config/scenario, `2` runtime failure
 
 ## AI agent skill
 
-`demoreel install-skill` drops a `SKILL.md` into your project so Claude Code
+`scenario-kit install-skill` drops a `SKILL.md` into your project so Claude Code
 / Codex-style agents can regenerate demo videos on request — it documents
-`npx demoreel` usage and the steps vocabulary, with no bundled scripts.
+`npx scenario-kit` usage and the steps vocabulary, with no bundled scripts.
 
 ## Notes
 

@@ -36,14 +36,14 @@ describe("scenario.schema.json", () => {
 
 // schema と runtime (parseScenario) は「同一定義」である契約なので、代表的な入力
 // それぞれについて accept/reject が一致することを確認する。片方だけ緩い/厳しいと
-// $schema でエディタが通しても demoreel run が拒否する、または逆の空通しになる。
+// $schema でエディタが通しても scenario-kit run が拒否する、または逆の空通しになる。
 describe("schema/runtime parity", () => {
   const cases: Array<{ name: string; value: unknown }> = [
     { name: "valid minimal", value: { steps: [] } },
     {
       name: "valid with $schema and steps",
       value: {
-        $schema: "https://unpkg.com/demoreel/schema/scenario.schema.json",
+        $schema: "https://unpkg.com/scenario-kit/schema/scenario.schema.json",
         steps: [{ goto: "https://example.com" }, { mark: "hero" }],
       },
     },

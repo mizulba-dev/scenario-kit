@@ -12,19 +12,19 @@ import { renderDemo } from "./lib/render";
 import { loadScenario } from "./lib/scenario-loader";
 import { STEP_KEYS } from "./lib/steps";
 
-const HELP = `demoreel - record and render product demo videos from a JSON scenario
+const HELP = `scenario-kit - record and render product demo videos from a JSON scenario
 
 Usage:
-  demoreel record <name>       Record a scenario to demoreel/out/recordings/<name>.webm
-  demoreel render <name>       Convert + composite the recording into demoreel/out/<name>-demo.mp4
-  demoreel run <name>          record + render
-  demoreel init                Scaffold demoreel/ (config.json + landing.json) in the current project
-  demoreel install-skill       Install the demoreel SKILL.md into .claude/skills/ and .agents/skills/
-  demoreel install-skill --user  Install into ~/.claude/skills/demoreel/ instead
+  scenario-kit record <name>       Record a scenario to scenario-kit/out/recordings/<name>.webm
+  scenario-kit render <name>       Convert + composite the recording into scenario-kit/out/<name>-demo.mp4
+  scenario-kit run <name>          record + render
+  scenario-kit init                Scaffold scenario-kit/ (config.json + landing.json) in the current project
+  scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
+  scenario-kit install-skill --user  Install into ~/.claude/skills/scenario-kit/ instead
 
-Looks for demoreel/config.json by searching upward from the current directory.
+Looks for scenario-kit/config.json by searching upward from the current directory.
 
-Steps vocabulary (demoreel/<name>.json "steps" array, one key per step):
+Steps vocabulary (scenario-kit/<name>.json "steps" array, one key per step):
   { "goto": "https://example.com" }        navigate to a URL
   { "click": "text=Sign up" }              click a Playwright locator
   { "type": ["input[name=q]", "hi"] }      type text into a locator
@@ -35,9 +35,9 @@ Steps vocabulary (demoreel/<name>.json "steps" array, one key per step):
   { "mark": "hero" }                       record a named timeline marker
 (known step keys: ${STEP_KEYS.join(", ")} - unknown keys are rejected before recording starts)
 
-Example demoreel/landing.json:
+Example scenario-kit/landing.json:
   {
-    "$schema": "https://unpkg.com/demoreel/schema/scenario.schema.json",
+    "$schema": "https://unpkg.com/scenario-kit/schema/scenario.schema.json",
     "steps": [
       { "goto": "https://example.com" },
       { "pause": 1000 },
@@ -46,7 +46,7 @@ Example demoreel/landing.json:
   }
 `;
 
-// name はファイル探索・出力パスの組み立てにそのまま使われるため、demoreel/ 外への
+// name はファイル探索・出力パスの組み立てにそのまま使われるため、scenario-kit/ 外への
 // パストラバーサル（../foo、絶対パス）を防ぐには単一 path segment に限定する
 const SCENARIO_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
@@ -54,7 +54,7 @@ const requireName = (args: string[]): string => {
   const { positionals } = parseArgs({ args, allowPositionals: true });
   const name = positionals[0];
   if (!name) {
-    throw new UserError('scenario name is required, e.g. "demoreel run landing"');
+    throw new UserError('scenario name is required, e.g. "scenario-kit run landing"');
   }
   if (!SCENARIO_NAME_RE.test(name)) {
     throw new UserError(
@@ -93,7 +93,7 @@ const runRender = async (args: string[]): Promise<number> => {
 
   const webm = join(config.outDir, "recordings", `${name}.webm`);
   if (!existsSync(webm)) {
-    throw new UserError(`recording not found: ${webm} (run "demoreel record ${name}" first)`);
+    throw new UserError(`recording not found: ${webm} (run "scenario-kit record ${name}" first)`);
   }
 
   const publicDir = join(config.outDir, "public");

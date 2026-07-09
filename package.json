@@ -1,16 +1,16 @@
 {
-  "name": "demoreel",
+  "name": "scenario-kit",
   "version": "0.1.0",
   "description": "Record product demo videos with Playwright and composite them into branded mp4s with Remotion, driven by a declarative JSON scenario.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mizulba-dev/demoreel.git"
+    "url": "git+https://github.com/mizulba-dev/scenario-kit.git"
   },
-  "homepage": "https://github.com/mizulba-dev/demoreel#readme",
+  "homepage": "https://github.com/mizulba-dev/scenario-kit#readme",
   "bugs": {
-    "url": "https://github.com/mizulba-dev/demoreel/issues"
+    "url": "https://github.com/mizulba-dev/scenario-kit/issues"
   },
   "keywords": [
     "demo",
@@ -24,7 +24,7 @@
     "node": ">=20"
   },
   "bin": {
-    "demoreel": "./dist/cli.js"
+    "scenario-kit": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

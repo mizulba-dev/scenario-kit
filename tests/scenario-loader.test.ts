@@ -19,7 +19,7 @@ describe("loadScenario", () => {
   });
 
   it("loads a <name>.json scenario and runs it against a fake page", async () => {
-    dir = mkdtempSync(join(tmpdir(), "demoreel-scenario-"));
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
     writeFileSync(
       join(dir, "landing.json"),
       JSON.stringify({ steps: [{ goto: "https://example.com" }, { mark: "start" }] }),
@@ -35,7 +35,7 @@ describe("loadScenario", () => {
   });
 
   it("prefers <name>.json over <name>.ts when both exist", async () => {
-    dir = mkdtempSync(join(tmpdir(), "demoreel-scenario-"));
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
     writeFileSync(join(dir, "landing.json"), JSON.stringify({ steps: [{ mark: "json" }] }));
     writeFileSync(join(dir, "landing.ts"), "export default async (ctx) => { ctx.mark('ts'); };\n");
 
@@ -47,7 +47,7 @@ describe("loadScenario", () => {
   });
 
   it("loads a <name>.ts scenario via tsImport when no json file exists", async () => {
-    dir = mkdtempSync(join(tmpdir(), "demoreel-scenario-"));
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
     writeFileSync(
       join(dir, "landing.ts"),
       "export default async (ctx) => { ctx.mark('from-ts'); };\n",
@@ -69,7 +69,7 @@ describe("loadScenario", () => {
   });
 
   it("throws a UserError when the ts scenario has no function default export", async () => {
-    dir = mkdtempSync(join(tmpdir(), "demoreel-scenario-"));
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
     writeFileSync(join(dir, "landing.ts"), "export const notDefault = 1;\n");
 
     const { tsImport } = await import("tsx/esm/api");
@@ -79,7 +79,7 @@ describe("loadScenario", () => {
   });
 
   it("throws a UserError when neither json nor ts scenario exists", async () => {
-    dir = mkdtempSync(join(tmpdir(), "demoreel-scenario-"));
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
     await expect(loadScenario(dir, "missing")).rejects.toThrow("scenario not found");
   });
 });

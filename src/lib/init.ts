@@ -9,7 +9,7 @@ export interface InitOptions {
 
 export const runInit = (options: InitOptions = {}): string => {
   const cwd = options.cwd ?? process.cwd();
-  const targetDir = join(cwd, "demoreel");
+  const targetDir = join(cwd, "scenario-kit");
   const configPath = join(targetDir, "config.json");
   if (existsSync(configPath)) {
     throw new UserError(`${configPath} already exists`);
@@ -29,7 +29,7 @@ export const runInit = (options: InitOptions = {}): string => {
     readFileSync(join(templatesDir, "landing.json"), "utf8"),
   ) as Record<string, unknown>;
   const landing = {
-    $schema: `https://unpkg.com/demoreel@${pkg.version}/schema/scenario.schema.json`,
+    $schema: `https://unpkg.com/scenario-kit@${pkg.version}/schema/scenario.schema.json`,
     ...landingTemplate,
   };
   writeFileSync(join(targetDir, "landing.json"), `${JSON.stringify(landing, null, 2)}\n`);

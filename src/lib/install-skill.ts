@@ -5,7 +5,7 @@ import { findPackageRoot } from "./package-root";
 
 export interface InstallSkillOptions {
   cwd?: string;
-  /** Install to ~/.claude/skills/demoreel/ instead of the project's .claude/ and .agents/ dirs */
+  /** Install to ~/.claude/skills/scenario-kit/ instead of the project's .claude/ and .agents/ dirs */
   user?: boolean;
 }
 
@@ -15,8 +15,11 @@ export const runInstallSkill = (options: InstallSkillOptions = {}): string[] => 
   const skill = readFileSync(join(packageRoot, "src", "templates", "SKILL.md"), "utf8");
 
   const targetDirs = options.user
-    ? [join(homedir(), ".claude", "skills", "demoreel")]
-    : [join(cwd, ".claude", "skills", "demoreel"), join(cwd, ".agents", "skills", "demoreel")];
+    ? [join(homedir(), ".claude", "skills", "scenario-kit")]
+    : [
+        join(cwd, ".claude", "skills", "scenario-kit"),
+        join(cwd, ".agents", "skills", "scenario-kit"),
+      ];
 
   return targetDirs.map((dir) => {
     mkdirSync(dir, { recursive: true });
