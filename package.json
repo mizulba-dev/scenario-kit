@@ -4,6 +4,22 @@
   "description": "Record product demo videos with Playwright and composite them into branded mp4s with Remotion, driven by a declarative JSON scenario.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mizulba-dev/demoreel.git"
+  },
+  "homepage": "https://github.com/mizulba-dev/demoreel#readme",
+  "bugs": {
+    "url": "https://github.com/mizulba-dev/demoreel/issues"
+  },
+  "keywords": [
+    "demo",
+    "video",
+    "playwright",
+    "remotion",
+    "screen-recording",
+    "cli"
+  ],
   "engines": {
     "node": ">=20"
   },
