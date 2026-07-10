@@ -27,7 +27,8 @@ scenario-kit/
   config.json     brand + output settings
   scenarios/
     landing.json  a recording scenario (add more: scenario-kit/scenarios/<name>.json)
-  out/            generated recordings and mp4s (gitignored by init)
+  assets/         brand assets such as logo.png (referenced from config.json)
+  out/            generated recordings, screenshots and mp4s (gitignored by init)
 ```
 
 `scenario-kit/config.json`:
@@ -37,7 +38,7 @@ scenario-kit/
   "brand": {
     "name": "...",                    // required, unless "logo" is set (then optional: wordmark shows the logo alone)
     "tagline": "...", "url": "...", "bg": "#1E293B", "accent": "#6366F1", "text": "#F8FAFC",
-    "logo": "logo.png"                // optional image (png/svg/...) shown instead of the generated initial icon,
+    "logo": "assets/logo.png"         // optional image (png/svg/...) shown instead of the generated initial icon,
   },                                  // resolved relative to scenario-kit/
   "outDir": "out",                    // optional, default "out" (relative to scenario-kit/)
   "storageState": ".auth/state.json", // optional, a Playwright storageState file for logged-in demos
@@ -60,6 +61,8 @@ scenario-kit/
 | `pause` | ms | wait |
 | `waitFor` | locator | wait for a locator to appear |
 | `mark` | label | record a named timeline marker |
+| `highlight` | locator | draw a red highlight box around a locator (`shots` only, no-op in `record`) |
+| `screenshot` | label | capture the current viewport as a PNG, then clear highlights (`shots` only, no-op in `record`) |
 
 `locator` is any Playwright locator string (`text=Get started`, `#hero`,
 `[data-testid=cta]`, ...). Unknown step keys are rejected before recording
@@ -116,6 +119,30 @@ Recordings then start already logged in — no login steps in the scenario, no
 credentials on disk beyond the session file. When the session expires (the
 recording suddenly shows a login page), run `scenario-kit login` again.
 
+## Screenshots
+
+`scenario-kit shots <name>` runs the same scenario as `record`, but captures
+PNG screenshots instead of a video — no `ffmpeg`/Remotion involved, and no
+pseudo-cursor. Use `highlight` and `screenshot` steps to annotate:
+
+```json
+{
+  "steps": [
+    { "goto": "https://example.com" },
+    { "highlight": "text=Get started" },
+    { "screenshot": "hero" }
+  ]
+}
+```
+
+Each `screenshot` step writes the current viewport (and clears any pending
+highlights afterward) to
+`scenario-kit/out/shots/<name>/01-hero.png` (numbered in capture order,
+label sanitized for the filename). The output directory is wiped and
+recreated at the start of each `shots` run. `highlight`/`screenshot` are
+no-ops during `record`, so the same scenario can drive both a demo video
+(no red boxes) and release-note screenshots (with them).
+
 ## Commands
 
 ```bash
@@ -123,6 +150,7 @@ scenario-kit init                     scaffold scenario-kit/ in the current proj
 scenario-kit record <name>            record a scenario to scenario-kit/out/recordings/<name>.webm
 scenario-kit render <name>            convert + composite into scenario-kit/out/<name>-demo.mp4
 scenario-kit run <name>               record + render
+scenario-kit shots <name>             capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
 scenario-kit login [url]              log in manually in a browser, save the session for logged-in demos
 scenario-kit install-skill            install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
 scenario-kit install-skill --user     install into ~/.claude/skills/scenario-kit/ instead

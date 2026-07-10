@@ -11,7 +11,7 @@ describe("runInit", () => {
     if (cwd) rmSync(cwd, { recursive: true, force: true });
   });
 
-  it("scaffolds config.json, scenarios/landing.json and .gitignore", () => {
+  it("scaffolds config.json, scenarios/landing.json, assets/ and .gitignore", () => {
     cwd = mkdtempSync(join(tmpdir(), "scenario-kit-init-"));
 
     const targetDir = runInit({ cwd });
@@ -19,6 +19,7 @@ describe("runInit", () => {
     expect(targetDir).toBe(join(cwd, "scenario-kit"));
     expect(existsSync(join(targetDir, "config.json"))).toBe(true);
     expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
+    expect(existsSync(join(targetDir, "assets", ".gitkeep"))).toBe(true);
 
     const landing = JSON.parse(
       readFileSync(join(targetDir, "scenarios", "landing.json"), "utf8"),

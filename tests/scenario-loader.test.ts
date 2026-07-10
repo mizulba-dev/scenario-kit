@@ -28,7 +28,9 @@ describe("loadScenario", () => {
     const runner = await loadScenario(dir, "landing");
     const goto = vi.fn(async () => {});
     const mark = vi.fn();
-    await runner({ page: { goto } as never, mark });
+    const highlight = vi.fn(async () => {});
+    const screenshot = vi.fn(async () => {});
+    await runner({ page: { goto } as never, mark, highlight, screenshot });
 
     expect(goto).toHaveBeenCalledWith("https://example.com", { waitUntil: "networkidle" });
     expect(mark).toHaveBeenCalledWith("start");
@@ -41,7 +43,9 @@ describe("loadScenario", () => {
 
     const runner = await loadScenario(dir, "landing");
     const mark = vi.fn();
-    await runner({ page: {} as never, mark });
+    const highlight = vi.fn(async () => {});
+    const screenshot = vi.fn(async () => {});
+    await runner({ page: {} as never, mark, highlight, screenshot });
 
     expect(mark).toHaveBeenCalledWith("json");
   });
@@ -59,7 +63,9 @@ describe("loadScenario", () => {
 
     const loaded = await loadScenario(dir, "landing");
     const mark = vi.fn();
-    await loaded({ page: {} as never, mark });
+    const highlight = vi.fn(async () => {});
+    const screenshot = vi.fn(async () => {});
+    await loaded({ page: {} as never, mark, highlight, screenshot });
 
     expect(tsImport).toHaveBeenCalledWith(
       expect.stringContaining("landing.ts"),

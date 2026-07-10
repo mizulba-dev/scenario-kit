@@ -9,7 +9,9 @@ export type Step =
   | { scroll: number }
   | { pause: number }
   | { waitFor: string }
-  | { mark: string };
+  | { mark: string }
+  | { highlight: string }
+  | { screenshot: string };
 
 export interface Scenario {
   steps: Step[];
@@ -18,6 +20,8 @@ export interface Scenario {
 export interface ScenarioContext {
   page: Page;
   mark: (label: string) => void;
+  highlight: (locator: string) => Promise<void>;
+  screenshot: (label: string) => Promise<void>;
 }
 
 export const STEP_KEYS = [
@@ -29,6 +33,8 @@ export const STEP_KEYS = [
   "pause",
   "waitFor",
   "mark",
+  "highlight",
+  "screenshot",
 ] as const;
 type StepKey = (typeof STEP_KEYS)[number];
 
@@ -72,6 +78,10 @@ const parseStep = (value: unknown, index: number): Step => {
       return { waitFor: nonEmptyString(arg, `${path}.waitFor`) };
     case "mark":
       return { mark: nonEmptyString(arg, `${path}.mark`) };
+    case "highlight":
+      return { highlight: nonEmptyString(arg, `${path}.highlight`) };
+    case "screenshot":
+      return { screenshot: nonEmptyString(arg, `${path}.screenshot`) };
     case "pause":
       return { pause: finiteNumber(arg, `${path}.pause`) };
     case "scroll":
@@ -126,7 +136,7 @@ const SCROLL_SETTLE_MS = 1500;
 const TYPE_KEY_DELAY_MS = 30;
 
 const runStep = async (step: Step, ctx: ScenarioContext): Promise<void> => {
-  const { page, mark } = ctx;
+  const { page, mark, highlight, screenshot } = ctx;
   if ("goto" in step) {
     await page.goto(step.goto, { waitUntil: "networkidle" });
     return;
@@ -157,6 +167,14 @@ const runStep = async (step: Step, ctx: ScenarioContext): Promise<void> => {
   }
   if ("waitFor" in step) {
     await page.locator(step.waitFor).waitFor();
+    return;
+  }
+  if ("highlight" in step) {
+    await highlight(step.highlight);
+    return;
+  }
+  if ("screenshot" in step) {
+    await screenshot(step.screenshot);
     return;
   }
   mark(step.mark);

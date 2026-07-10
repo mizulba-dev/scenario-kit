@@ -11,6 +11,7 @@ import { runInstallSkill } from "./lib/install-skill";
 import { startRecording } from "./lib/recorder";
 import { renderDemo } from "./lib/render";
 import { loadScenario } from "./lib/scenario-loader";
+import { startShots } from "./lib/shots";
 import { STEP_KEYS } from "./lib/steps";
 
 const HELP = `scenario-kit - record and render product demo videos from a JSON scenario
@@ -19,6 +20,7 @@ Usage:
   scenario-kit record <name>       Record a scenario to scenario-kit/out/recordings/<name>.webm
   scenario-kit render <name>       Convert + composite the recording into scenario-kit/out/<name>-demo.mp4
   scenario-kit run <name>          record + render
+  scenario-kit shots <name>        Capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
   scenario-kit login [url]         Open a browser to log in manually, then save the session (Playwright storageState) for logged-in recordings
   scenario-kit init                Scaffold scenario-kit/ (config.json + scenarios/landing.json) in the current project
   scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
@@ -35,6 +37,8 @@ Steps vocabulary (scenario-kit/scenarios/<name>.json "steps" array, one key per 
   { "pause": 1000 }                        wait N milliseconds
   { "waitFor": ".hero" }                   wait for a locator to appear
   { "mark": "hero" }                       record a named timeline marker
+  { "highlight": "text=Get started" }      draw a red highlight box around a locator (shots only)
+  { "screenshot": "hero" }                 capture the current viewport as a PNG (shots only), then clear highlights
 (known step keys: ${STEP_KEYS.join(", ")} - unknown keys are rejected before recording starts)
 
 Example scenario-kit/scenarios/landing.json:
@@ -79,12 +83,34 @@ const runRecord = async (args: string[]): Promise<number> => {
 
   let videoPath: string;
   try {
-    await scenario({ page, mark });
+    // 動画には擬似カーソルのみを映す。赤枠アノテーションは shots 専用なので record では no-op
+    await scenario({ page, mark, highlight: async () => {}, screenshot: async () => {} });
   } finally {
     // scenario 失敗時も必ず finish() でブラウザを閉じる（Chromium リーク防止）
     ({ videoPath } = await finish());
   }
   console.log(`recorded: ${videoPath}`);
+  return 0;
+};
+
+const runShots = async (args: string[]): Promise<number> => {
+  const name = requireName(args);
+  const config = loadConfig();
+  const scenario = await loadScenario(config.scenariosDir, name);
+
+  const dir = join(config.outDir, "shots", name);
+  const { page, highlight, screenshot, finish } = await startShots({
+    dir,
+    storageState: config.storageState,
+  });
+
+  try {
+    // shots モードでは mark は no-op（events.json は出力しない）
+    await scenario({ page, mark: () => {}, highlight, screenshot });
+  } finally {
+    await finish();
+  }
+  console.log(`shots: ${dir}`);
   return 0;
 };
 
@@ -150,6 +176,8 @@ const main = async (): Promise<number> => {
         return await runRender(rest);
       case "run":
         return await runRun(rest);
+      case "shots":
+        return await runShots(rest);
       case "login": {
         const { positionals } = parseArgs({ args: rest, allowPositionals: true });
         const config = loadConfig();

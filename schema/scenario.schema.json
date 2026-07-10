@@ -66,6 +66,16 @@
           "type": "string",
           "minLength": 1,
           "description": "Records a named timeline marker in the recording's events log."
+        },
+        "highlight": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Draws a red highlight box around a Playwright locator string (shots only)."
+        },
+        "screenshot": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Captures the current viewport as a PNG with this label, then clears highlights (shots only)."
         }
       }
     }

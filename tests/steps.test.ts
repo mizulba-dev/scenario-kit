@@ -13,9 +13,11 @@ describe("parseScenario", () => {
         { waitFor: ".hero" },
         { pause: 500 },
         { mark: "hero" },
+        { highlight: ".hero" },
+        { screenshot: "hero" },
       ],
     });
-    expect(scenario.steps).toHaveLength(8);
+    expect(scenario.steps).toHaveLength(10);
   });
 
   it("rejects a non-object scenario", () => {
@@ -41,6 +43,10 @@ describe("parseScenario", () => {
     expect(() => parseScenario({ steps: [{ move: [1] }] })).toThrow("steps[0].move");
     expect(() => parseScenario({ steps: [{ type: ["a"] }] })).toThrow("steps[0].type");
     expect(() => parseScenario({ steps: [{ pause: "later" }] })).toThrow("steps[0].pause");
+    expect(() => parseScenario({ steps: [{ highlight: "" }] })).toThrow("steps[0].highlight");
+    expect(() => parseScenario({ steps: [{ screenshot: "" }] })).toThrow("steps[0].screenshot");
+    expect(() => parseScenario({ steps: [{ highlight: 1 }] })).toThrow("steps[0].highlight");
+    expect(() => parseScenario({ steps: [{ screenshot: 1 }] })).toThrow("steps[0].screenshot");
   });
 
   it("accepts $schema alongside steps but rejects any other unknown top-level key", () => {
@@ -75,6 +81,12 @@ describe("runSteps", () => {
   it("dispatches each step kind to the expected page action", async () => {
     const { page, calls } = fakePage();
     const mark = vi.fn();
+    const highlight = vi.fn(async (locator: string) => {
+      calls.push(["highlight", locator]);
+    });
+    const screenshot = vi.fn(async (label: string) => {
+      calls.push(["screenshot", label]);
+    });
     const scenario = parseScenario({
       steps: [
         { goto: "https://example.com" },
@@ -84,11 +96,13 @@ describe("runSteps", () => {
         { scroll: 400 },
         { waitFor: ".hero" },
         { pause: 100 },
+        { highlight: ".hero" },
+        { screenshot: "done" },
         { mark: "done" },
       ],
     });
 
-    await runSteps(scenario.steps, { page: page as never, mark });
+    await runSteps(scenario.steps, { page: page as never, mark, highlight, screenshot });
 
     expect(calls[0]).toEqual(["goto", "https://example.com"]);
     expect(calls[1]).toEqual(["move", [10, 20]]);
@@ -98,6 +112,10 @@ describe("runSteps", () => {
     expect(calls[5]).toEqual(["waitForTimeout", 1500]);
     expect(calls[6]).toEqual(["waitFor", ".hero"]);
     expect(calls[7]).toEqual(["waitForTimeout", 100]);
+    expect(calls[8]).toEqual(["highlight", ".hero"]);
+    expect(calls[9]).toEqual(["screenshot", "done"]);
+    expect(highlight).toHaveBeenCalledWith(".hero");
+    expect(screenshot).toHaveBeenCalledWith("done");
     expect(mark).toHaveBeenCalledWith("done");
   });
 });

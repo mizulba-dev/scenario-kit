@@ -57,6 +57,9 @@ describe("schema/runtime parity", () => {
     },
     { name: "goto with empty string", value: { steps: [{ goto: "" }] } },
     { name: "move with wrong tuple length", value: { steps: [{ move: [1] }] } },
+    { name: "valid highlight", value: { steps: [{ highlight: "x" }] } },
+    { name: "highlight with empty string", value: { steps: [{ highlight: "" }] } },
+    { name: "valid screenshot", value: { steps: [{ screenshot: "x" }] } },
   ];
 
   for (const { name, value } of cases) {

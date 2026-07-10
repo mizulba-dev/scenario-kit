@@ -24,6 +24,11 @@ export const runInit = (options: InitOptions = {}): string => {
   const scenariosDir = join(targetDir, "scenarios");
   mkdirSync(scenariosDir, { recursive: true });
 
+  // brand.logo などの素材ファイルの置き場所。空ディレクトリは git 管理できないため .gitkeep を置く
+  const assetsDir = join(targetDir, "assets");
+  mkdirSync(assetsDir, { recursive: true });
+  writeFileSync(join(assetsDir, ".gitkeep"), "");
+
   writeFileSync(configPath, readFileSync(join(templatesDir, "config.json"), "utf8"));
 
   const landingTemplate = JSON.parse(
