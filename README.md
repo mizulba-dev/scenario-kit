@@ -91,6 +91,28 @@ export default defineScenario(async ({ page, mark }) => {
 });
 ```
 
+## Logged-in demos (authentication)
+
+To record pages behind a login, save a logged-in session once:
+
+```bash
+npx scenario-kit login https://example.com/login
+```
+
+A browser opens — log in manually, then press Enter in the terminal. The
+session (a Playwright storageState file: cookies + localStorage) is saved to
+`scenario-kit/.auth/state.json` (git-ignored automatically) or to the
+configured `storageState` path. Point `storageState` in
+`scenario-kit/config.json` at it:
+
+```jsonc
+{ "storageState": ".auth/state.json" }
+```
+
+Recordings then start already logged in — no login steps in the scenario, no
+credentials on disk beyond the session file. When the session expires (the
+recording suddenly shows a login page), run `scenario-kit login` again.
+
 ## Commands
 
 ```bash
@@ -98,6 +120,7 @@ scenario-kit init                     scaffold scenario-kit/ in the current proj
 scenario-kit record <name>            record a scenario to scenario-kit/out/recordings/<name>.webm
 scenario-kit render <name>            convert + composite into scenario-kit/out/<name>-demo.mp4
 scenario-kit run <name>               record + render
+scenario-kit login [url]              log in manually in a browser, save the session for logged-in demos
 scenario-kit install-skill            install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
 scenario-kit install-skill --user     install into ~/.claude/skills/scenario-kit/ instead
 scenario-kit --help                   full command and steps reference

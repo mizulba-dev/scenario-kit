@@ -6,6 +6,7 @@ import { assertFfmpegAvailable, convertToMp4, probeDuration } from "./lib/ffmpeg
 import { loadConfig } from "./lib/config";
 import { UserError } from "./lib/errors";
 import { runInit } from "./lib/init";
+import { runLogin } from "./lib/login";
 import { runInstallSkill } from "./lib/install-skill";
 import { startRecording } from "./lib/recorder";
 import { renderDemo } from "./lib/render";
@@ -18,6 +19,7 @@ Usage:
   scenario-kit record <name>       Record a scenario to scenario-kit/out/recordings/<name>.webm
   scenario-kit render <name>       Convert + composite the recording into scenario-kit/out/<name>-demo.mp4
   scenario-kit run <name>          record + render
+  scenario-kit login [url]         Open a browser to log in manually, then save the session (Playwright storageState) for logged-in recordings
   scenario-kit init                Scaffold scenario-kit/ (config.json + scenarios/landing.json) in the current project
   scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
   scenario-kit install-skill --user  Install into ~/.claude/skills/scenario-kit/ instead
@@ -146,6 +148,22 @@ const main = async (): Promise<number> => {
         return await runRender(rest);
       case "run":
         return await runRun(rest);
+      case "login": {
+        const { positionals } = parseArgs({ args: rest, allowPositionals: true });
+        const config = loadConfig();
+        const { path, usedDefaultPath } = await runLogin({
+          dir: config.dir,
+          storageState: config.storageState,
+          url: positionals[0],
+        });
+        console.log(`saved: ${path}`);
+        if (usedDefaultPath) {
+          console.log(
+            'add "storageState": ".auth/state.json" to scenario-kit/config.json to record with this session',
+          );
+        }
+        return 0;
+      }
       case "init": {
         const targetDir = runInit();
         console.log(`initialized: ${targetDir}`);

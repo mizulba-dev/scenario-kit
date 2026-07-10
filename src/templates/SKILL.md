@@ -27,9 +27,16 @@ scenario-kit/
 npx scenario-kit run <name>      # record + render in one step
 npx scenario-kit record <name>   # record only -> scenario-kit/out/recordings/<name>.webm
 npx scenario-kit render <name>   # convert + composite only -> scenario-kit/out/<name>-demo.mp4
+npx scenario-kit login [url]     # save a logged-in session for recording pages behind a login
 npx scenario-kit init            # scaffold scenario-kit/ in a new project
 npx scenario-kit --help          # full command and steps reference
 ```
+
+`login` opens a browser for the user to log in manually (it needs their input —
+tell them to log in and press Enter in the terminal), then saves a Playwright
+storageState file. Set `"storageState": ".auth/state.json"` in
+`scenario-kit/config.json` so recordings start already logged in. Never write
+login steps (credentials) into a scenario.
 
 Requires `ffmpeg`/`ffprobe` on PATH, and `npx playwright install chromium`
 once per machine.
