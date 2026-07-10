@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { installCursor } from "./cursor";
+import { cursorInitScript } from "./cursor";
 
 export interface DemoEvent {
   t: number;
@@ -58,7 +58,7 @@ export const startRecording = async (options: RecorderOptions): Promise<Recordin
       events.push({ t: Date.now(), type: "click", x: ev.x, y: ev.y });
     },
   );
-  await context.addInitScript(installCursor);
+  await context.addInitScript(cursorInitScript());
   await context.addInitScript(reportClicks);
 
   const page = await context.newPage();
