@@ -21,4 +21,16 @@ describe("totalFrames", () => {
   it("adds intro and outro to the video frames", () => {
     expect(totalFrames(10)).toBe(INTRO_FRAMES + 10 * FPS + OUTRO_FRAMES);
   });
+
+  it("drops intro frames when intro is false", () => {
+    expect(totalFrames(10, { intro: false })).toBe(10 * FPS + OUTRO_FRAMES);
+  });
+
+  it("drops outro frames when outro is false", () => {
+    expect(totalFrames(10, { outro: false })).toBe(INTRO_FRAMES + 10 * FPS);
+  });
+
+  it("drops both when intro and outro are false", () => {
+    expect(totalFrames(10, { intro: false, outro: false })).toBe(10 * FPS);
+  });
 });

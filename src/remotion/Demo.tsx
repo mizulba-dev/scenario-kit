@@ -17,49 +17,63 @@ export type DemoProps = {
   srcName: string;
   durationSec: number;
   brand: Brand;
+  intro: boolean;
+  outro: boolean;
 };
 
 const fontFamily = "ui-sans-serif, -apple-system, sans-serif";
 
-const Wordmark: React.FC<{ brand: Brand; size?: number }> = ({ brand, size = 96 }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-    {brand.logo ? (
+export const Wordmark: React.FC<{ brand: Brand; size?: number }> = ({ brand, size = 96 }) => {
+  if (brand.name === undefined) {
+    // brand.ts のバリデーションにより name 省略時は logo が必須
+    return (
       <Img
-        src={staticFile(brand.logo)}
-        style={{ height: size * 0.9, width: "auto", display: "block" }}
+        src={staticFile(brand.logo as string)}
+        style={{ height: size, width: "auto", display: "block" }}
       />
-    ) : (
+    );
+  }
+  const name = brand.name;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+      {brand.logo ? (
+        <Img
+          src={staticFile(brand.logo)}
+          style={{ height: size * 0.9, width: "auto", display: "block" }}
+        />
+      ) : (
+        <div
+          style={{
+            width: size * 0.9,
+            height: size * 0.9,
+            borderRadius: size * 0.22,
+            background: brand.accent,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
+            fontSize: size * 0.52,
+            fontWeight: 800,
+            fontFamily,
+          }}
+        >
+          {name.charAt(0)}
+        </div>
+      )}
       <div
         style={{
-          width: size * 0.9,
-          height: size * 0.9,
-          borderRadius: size * 0.22,
-          background: brand.accent,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontSize: size * 0.52,
-          fontWeight: 800,
+          color: brand.text,
+          fontSize: size,
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
           fontFamily,
         }}
       >
-        {brand.name.charAt(0)}
+        {name}
       </div>
-    )}
-    <div
-      style={{
-        color: brand.text,
-        fontSize: size,
-        fontWeight: 700,
-        letterSpacing: "-0.02em",
-        fontFamily,
-      }}
-    >
-      {brand.name}
     </div>
-  </div>
-);
+  );
+};
 
 const centered: CSSProperties = {
   alignItems: "center",
@@ -95,21 +109,25 @@ const WindowFrame: React.FC<{
   brand: Brand;
   srcName: string;
   durationFrames: number;
-}> = ({ brand, srcName, durationFrames }) => {
+  fadeOut: boolean;
+}> = ({ brand, srcName, durationFrames, fadeOut }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ frame, fps, config: { damping: 200 } });
   // 全編でわずかに寄る。クリック連動ズームの代わりの最小限の動き
   const drift = interpolate(frame, [0, durationFrames], [1, 1.035]);
-  const fadeOut = interpolate(frame, [durationFrames - 12, durationFrames], [1, 0], {
-    extrapolateLeft: "clamp",
-  });
+  // outro カードへの転換演出のため、outro が無いときは末尾フェードアウトを省略する
+  const opacity = fadeOut
+    ? interpolate(frame, [durationFrames - 12, durationFrames], [1, 0], {
+        extrapolateLeft: "clamp",
+      })
+    : 1;
 
   const winW = 1520;
   const barH = 44;
 
   return (
-    <AbsoluteFill style={{ ...centered, opacity: fadeOut }}>
+    <AbsoluteFill style={{ ...centered, opacity }}>
       <div
         style={{
           transform: `scale(${(0.96 + 0.04 * enter) * drift})`,
@@ -167,19 +185,24 @@ const Outro: React.FC<{ brand: Brand }> = ({ brand }) => {
   );
 };
 
-export const Demo: React.FC<DemoProps> = ({ srcName, durationSec, brand }) => {
+export const Demo: React.FC<DemoProps> = ({ srcName, durationSec, brand, intro, outro }) => {
   const frames = videoFrames(durationSec);
+  const introFrames = intro ? INTRO_FRAMES : 0;
   return (
     <AbsoluteFill style={{ backgroundColor: brand.bg }}>
-      <Sequence durationInFrames={INTRO_FRAMES}>
-        <Intro brand={brand} />
+      {intro && (
+        <Sequence durationInFrames={INTRO_FRAMES}>
+          <Intro brand={brand} />
+        </Sequence>
+      )}
+      <Sequence from={introFrames} durationInFrames={frames}>
+        <WindowFrame brand={brand} srcName={srcName} durationFrames={frames} fadeOut={outro} />
       </Sequence>
-      <Sequence from={INTRO_FRAMES} durationInFrames={frames}>
-        <WindowFrame brand={brand} srcName={srcName} durationFrames={frames} />
-      </Sequence>
-      <Sequence from={INTRO_FRAMES + frames} durationInFrames={OUTRO_FRAMES}>
-        <Outro brand={brand} />
-      </Sequence>
+      {outro && (
+        <Sequence from={introFrames + frames} durationInFrames={OUTRO_FRAMES}>
+          <Outro brand={brand} />
+        </Sequence>
+      )}
     </AbsoluteFill>
   );
 };

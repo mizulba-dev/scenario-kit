@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 
 export interface Brand {
-  name: string;
+  /** logo 指定時のみ省略可（省略時 Wordmark はロゴ単体表示になる） */
+  name?: string;
   tagline: string;
   url: string;
   bg: string;
@@ -12,7 +13,7 @@ export interface Brand {
 }
 
 const COLOR_KEYS = ["bg", "accent", "text"] as const;
-const TEXT_KEYS = ["name", "tagline", "url"] as const;
+const TEXT_KEYS = ["tagline", "url"] as const;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
 export const parseBrand = (value: unknown): Brand => {
@@ -32,6 +33,13 @@ export const parseBrand = (value: unknown): Brand => {
   }
   if (record.logo !== undefined && (typeof record.logo !== "string" || record.logo === "")) {
     throw new Error('brand config: "logo" must be a non-empty string (path to an image file)');
+  }
+  if (record.name === undefined) {
+    if (!record.logo) {
+      throw new Error('brand config: "name" is required unless "logo" is set');
+    }
+  } else if (typeof record.name !== "string" || record.name === "") {
+    throw new Error('brand config: "name" must be a non-empty string');
   }
   return record as unknown as Brand;
 };

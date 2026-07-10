@@ -3,7 +3,7 @@ import { Demo, type DemoProps } from "./Demo";
 import { FPS, totalFrames } from "../lib/timing";
 
 const calculateMetadata: CalculateMetadataFunction<DemoProps> = ({ props }) => ({
-  durationInFrames: totalFrames(props.durationSec),
+  durationInFrames: totalFrames(props.durationSec, { intro: props.intro, outro: props.outro }),
 });
 
 export const Root: React.FC = () => (
@@ -17,6 +17,8 @@ export const Root: React.FC = () => (
       {
         srcName: "rec.mp4",
         durationSec: 10,
+        intro: true,
+        outro: true,
         brand: {
           name: "Demo",
           tagline: "tagline",

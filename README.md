@@ -35,11 +35,14 @@ scenario-kit/
 ```jsonc
 {
   "brand": {
-    "name": "...", "tagline": "...", "url": "...", "bg": "#1E293B", "accent": "#6366F1", "text": "#F8FAFC",
+    "name": "...",                    // required, unless "logo" is set (then optional: wordmark shows the logo alone)
+    "tagline": "...", "url": "...", "bg": "#1E293B", "accent": "#6366F1", "text": "#F8FAFC",
     "logo": "logo.png"                // optional image (png/svg/...) shown instead of the generated initial icon,
   },                                  // resolved relative to scenario-kit/
   "outDir": "out",                    // optional, default "out" (relative to scenario-kit/)
-  "storageState": ".auth/state.json"  // optional, a Playwright storageState file for logged-in demos
+  "storageState": ".auth/state.json", // optional, a Playwright storageState file for logged-in demos
+  "intro": true,                      // optional, default true; set false to drop the intro card
+  "outro": true                       // optional, default true; set false to drop the outro card
 }
 ```
 

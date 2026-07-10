@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadConfig, parseConfig } from "../src/lib/config";
+import { UserError } from "../src/lib/errors";
 
 const validBrand = {
   name: "PaPut",
@@ -19,6 +20,37 @@ describe("parseConfig", () => {
     expect(config.outDir).toBe(join("/proj/scenario-kit", "out"));
     expect(config.storageState).toBeUndefined();
     expect(config.brand).toEqual(validBrand);
+  });
+
+  it("defaults intro and outro to true when omitted", () => {
+    const config = parseConfig("/proj/scenario-kit", { brand: validBrand });
+    expect(config.intro).toBe(true);
+    expect(config.outro).toBe(true);
+  });
+
+  it("accepts explicit intro/outro booleans", () => {
+    const config = parseConfig("/proj/scenario-kit", {
+      brand: validBrand,
+      intro: false,
+      outro: false,
+    });
+    expect(config.intro).toBe(false);
+    expect(config.outro).toBe(false);
+  });
+
+  it("rejects a non-boolean intro or outro", () => {
+    expect(() => parseConfig("/proj/scenario-kit", { brand: validBrand, intro: "false" })).toThrow(
+      UserError,
+    );
+    expect(() => parseConfig("/proj/scenario-kit", { brand: validBrand, intro: "false" })).toThrow(
+      '"intro"',
+    );
+    expect(() => parseConfig("/proj/scenario-kit", { brand: validBrand, outro: "false" })).toThrow(
+      UserError,
+    );
+    expect(() => parseConfig("/proj/scenario-kit", { brand: validBrand, outro: "false" })).toThrow(
+      '"outro"',
+    );
   });
 
   it("derives scenariosDir as the scenarios/ subdirectory of the config directory", () => {

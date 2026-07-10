@@ -11,6 +11,8 @@ export interface ScenarioKitConfig {
   brand: Brand;
   outDir: string;
   storageState?: string;
+  intro: boolean;
+  outro: boolean;
 }
 
 const CONFIG_RELATIVE_PATH = join("scenario-kit", "config.json");
@@ -33,7 +35,7 @@ export const findConfigPath = (startDir: string): string => {
 const resolveRelative = (dir: string, value: string): string =>
   isAbsolute(value) ? value : join(dir, value);
 
-const CONFIG_TOP_LEVEL_KEYS = ["brand", "outDir", "storageState"] as const;
+const CONFIG_TOP_LEVEL_KEYS = ["brand", "outDir", "storageState", "intro", "outro"] as const;
 
 export const parseConfig = (dir: string, value: unknown): ScenarioKitConfig => {
   if (typeof value !== "object" || value === null) {
@@ -74,7 +76,17 @@ export const parseConfig = (dir: string, value: unknown): ScenarioKitConfig => {
     ? resolveRelative(dir, record.storageState as string)
     : undefined;
 
-  return { dir, scenariosDir: join(dir, "scenarios"), brand, outDir, storageState };
+  if (record.intro !== undefined && typeof record.intro !== "boolean") {
+    throw new UserError('scenario-kit/config.json: "intro" must be a boolean');
+  }
+  const intro = (record.intro as boolean | undefined) ?? true;
+
+  if (record.outro !== undefined && typeof record.outro !== "boolean") {
+    throw new UserError('scenario-kit/config.json: "outro" must be a boolean');
+  }
+  const outro = (record.outro as boolean | undefined) ?? true;
+
+  return { dir, scenariosDir: join(dir, "scenarios"), brand, outDir, storageState, intro, outro };
 };
 
 export const loadConfig = (startDir: string = process.cwd()): ScenarioKitConfig => {

@@ -125,6 +125,8 @@ const runRender = async (args: string[]): Promise<number> => {
     brand,
     publicDir,
     outFile,
+    intro: config.intro,
+    outro: config.outro,
   });
   console.log(`rendered: ${outFile}`);
   return 0;

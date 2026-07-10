@@ -36,4 +36,17 @@ describe("parseBrand", () => {
     expect(() => parseBrand({ ...valid, logo: "" })).toThrow('"logo"');
     expect(() => parseBrand({ ...valid, logo: 1 })).toThrow('"logo"');
   });
+
+  it("allows name to be omitted when logo is set", () => {
+    const { name: _name, ...withoutName } = valid;
+    expect(parseBrand({ ...withoutName, logo: "logo.png" })).toEqual({
+      ...withoutName,
+      logo: "logo.png",
+    });
+  });
+
+  it("requires name when logo is not set", () => {
+    const { name: _name, ...withoutName } = valid;
+    expect(() => parseBrand(withoutName)).toThrow('"name" is required unless "logo" is set');
+  });
 });

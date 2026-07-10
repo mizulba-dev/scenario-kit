@@ -12,6 +12,8 @@ export interface RenderOptions {
   /** 変換後 mp4 が置かれているディレクトリ。staticFile(srcName) はここを基準に解決される */
   publicDir: string;
   outFile: string;
+  intro: boolean;
+  outro: boolean;
 }
 
 export const renderDemo = async (options: RenderOptions): Promise<void> => {
@@ -27,6 +29,8 @@ export const renderDemo = async (options: RenderOptions): Promise<void> => {
     srcName: options.srcName,
     durationSec: options.durationSec,
     brand: options.brand,
+    intro: options.intro,
+    outro: options.outro,
   };
 
   const composition = await selectComposition({

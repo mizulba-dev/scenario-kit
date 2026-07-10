@@ -9,5 +9,10 @@ export const videoFrames = (durationSec: number): number => {
   return Math.round(durationSec * FPS);
 };
 
-export const totalFrames = (durationSec: number): number =>
-  INTRO_FRAMES + videoFrames(durationSec) + OUTRO_FRAMES;
+export const totalFrames = (
+  durationSec: number,
+  opts?: { intro?: boolean; outro?: boolean },
+): number =>
+  ((opts?.intro ?? true) ? INTRO_FRAMES : 0) +
+  videoFrames(durationSec) +
+  ((opts?.outro ?? true) ? OUTRO_FRAMES : 0);
