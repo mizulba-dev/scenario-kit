@@ -118,4 +118,72 @@ describe("runSteps", () => {
     expect(screenshot).toHaveBeenCalledWith("done");
     expect(mark).toHaveBeenCalledWith("done");
   });
+
+  it("calls onStep with each step and its index before running it, when provided", async () => {
+    const { page } = fakePage();
+    const scenario = parseScenario({
+      steps: [{ mark: "a" }, { mark: "b" }, { mark: "c" }],
+    });
+    const onStep = vi.fn();
+
+    await runSteps(scenario.steps, {
+      page: page as never,
+      mark: vi.fn(),
+      highlight: vi.fn(),
+      screenshot: vi.fn(),
+      onStep,
+    });
+
+    expect(onStep.mock.calls.map((call) => call[1])).toEqual([0, 1, 2]);
+    expect(onStep).toHaveBeenNthCalledWith(1, { mark: "a" }, 0);
+    expect(onStep).toHaveBeenNthCalledWith(3, { mark: "c" }, 2);
+  });
+
+  it("has already recorded onStep for the failing step by the time that step rejects", async () => {
+    const { page, calls } = fakePage();
+    const scenario = parseScenario({
+      steps: [{ goto: "https://example.com" }, { click: "text=Go" }, { mark: "unreached" }],
+    });
+    // click だけ reject させ、onStep が runStep の後ろに移動していないかを検証する。
+    // 後ろに移動していると、click が reject した時点で index 1 の onStep がまだ
+    // 呼ばれておらず、以下のアサーションが失敗する
+    page.locator.mockImplementation((selector: string) => ({
+      click: vi.fn(async (): Promise<number> => {
+        throw new Error("boom");
+      }),
+      pressSequentially: vi.fn(async (text: string) =>
+        calls.push(["pressSequentially", [selector, text]]),
+      ),
+      waitFor: vi.fn(async () => calls.push(["waitFor", selector])),
+    }));
+    const onStep = vi.fn();
+
+    await expect(
+      runSteps(scenario.steps, {
+        page: page as never,
+        mark: vi.fn(),
+        highlight: vi.fn(),
+        screenshot: vi.fn(),
+        onStep,
+      }),
+    ).rejects.toThrow("boom");
+
+    expect(onStep).toHaveBeenCalledTimes(2);
+    expect(onStep).toHaveBeenNthCalledWith(2, { click: "text=Go" }, 1);
+  });
+
+  it("runs exactly as before when onStep is not provided (record/shots)", async () => {
+    const { page, calls } = fakePage();
+    const scenario = parseScenario({ steps: [{ goto: "https://example.com" }, { mark: "done" }] });
+
+    await expect(
+      runSteps(scenario.steps, {
+        page: page as never,
+        mark: vi.fn(),
+        highlight: vi.fn(),
+        screenshot: vi.fn(),
+      }),
+    ).resolves.not.toThrow();
+    expect(calls[0]).toEqual(["goto", "https://example.com"]);
+  });
 });

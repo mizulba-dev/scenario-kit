@@ -22,6 +22,8 @@ export interface ScenarioContext {
   mark: (label: string) => void;
   highlight: (locator: string) => Promise<void>;
   screenshot: (label: string) => Promise<void>;
+  /** qa が step 境界（進行位置）を追跡するための内部フック。record/shots では未指定 */
+  onStep?: (step: Step, index: number) => void;
 }
 
 export const STEP_KEYS = [
@@ -181,7 +183,8 @@ const runStep = async (step: Step, ctx: ScenarioContext): Promise<void> => {
 };
 
 export const runSteps = async (steps: Step[], ctx: ScenarioContext): Promise<void> => {
-  for (const step of steps) {
+  for (const [index, step] of steps.entries()) {
+    ctx.onStep?.(step, index);
     await runStep(step, ctx);
   }
 };

@@ -52,3 +52,10 @@ export const installCursor = (): void => {
     ensure();
   }
 };
+
+// addInitScript にはこのソース文字列を渡す。tsx (esbuild keepNames) がシリアライズ
+// 結果に __name 参照を挿すため同一 script 内で先にシムを定義する（複数 addInitScript
+// の評価順は Playwright が保証しない）。シムは init script のラッパースコープに
+// 閉じないよう globalThis へ代入する
+export const cursorInitScript = (): string =>
+  `globalThis.__name = (fn) => fn;\n(${installCursor.toString()})();`;

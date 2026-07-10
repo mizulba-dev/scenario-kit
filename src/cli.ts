@@ -8,6 +8,7 @@ import { UserError } from "./lib/errors";
 import { runInit } from "./lib/init";
 import { runLogin } from "./lib/login";
 import { runInstallSkill } from "./lib/install-skill";
+import { startQa } from "./lib/qa";
 import { startRecording } from "./lib/recorder";
 import { renderDemo } from "./lib/render";
 import { loadScenario } from "./lib/scenario-loader";
@@ -21,6 +22,7 @@ Usage:
   scenario-kit render <name>       Convert + composite the recording into scenario-kit/out/<name>-demo.mp4
   scenario-kit run <name>          record + render
   scenario-kit shots <name>        Capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
+  scenario-kit qa <name>           Record + detect runtime issues, writing scenario-kit/out/qa/<name>/{video.mp4,report.json,*.png}
   scenario-kit login [url]         Open a browser to log in manually, then save the session (Playwright storageState) for logged-in recordings
   scenario-kit init                Scaffold scenario-kit/ (config.json + scenarios/landing.json) in the current project
   scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
@@ -38,7 +40,7 @@ Steps vocabulary (scenario-kit/scenarios/<name>.json "steps" array, one key per 
   { "waitFor": ".hero" }                   wait for a locator to appear
   { "mark": "hero" }                       record a named timeline marker
   { "highlight": "text=Get started" }      draw a red highlight box around a locator (shots only)
-  { "screenshot": "hero" }                 capture the current viewport as a PNG (shots only), then clear highlights
+  { "screenshot": "hero" }                 capture the current viewport as a PNG (shots/qa only), then clear highlights
 (known step keys: ${STEP_KEYS.join(", ")} - unknown keys are rejected before recording starts)
 
 Example scenario-kit/scenarios/landing.json:
@@ -114,6 +116,38 @@ const runShots = async (args: string[]): Promise<number> => {
   return 0;
 };
 
+const runQa = async (args: string[]): Promise<number> => {
+  const name = requireName(args);
+  assertFfmpegAvailable();
+  const config = loadConfig();
+  const scenarioType: "json" | "ts" = existsSync(join(config.scenariosDir, `${name}.json`))
+    ? "json"
+    : "ts";
+  const scenario = await loadScenario(config.scenariosDir, name);
+
+  const dir = join(config.outDir, "qa", name);
+  const session = await startQa({ dir, name, storageState: config.storageState });
+
+  let failureMessage: string | undefined;
+  try {
+    // 録画に写り込むため highlight は no-op（shots 専用、#139 と同じ理由）
+    await scenario({
+      page: session.page,
+      mark: session.mark,
+      highlight: async () => {},
+      screenshot: session.screenshot,
+      onStep: session.onStep,
+    });
+  } catch (err) {
+    failureMessage = err instanceof Error ? err.message : String(err);
+  }
+
+  const { report, reportPath, videoPath } = await session.finish({ scenarioType, failureMessage });
+  console.log(`qa: ${videoPath}`);
+  console.log(`report: ${reportPath}`);
+  return report.ok ? 0 : 2;
+};
+
 const runRender = async (args: string[]): Promise<number> => {
   const name = requireName(args);
   assertFfmpegAvailable();
@@ -178,6 +212,8 @@ const main = async (): Promise<number> => {
         return await runRun(rest);
       case "shots":
         return await runShots(rest);
+      case "qa":
+        return await runQa(rest);
       case "login": {
         const { positionals } = parseArgs({ args: rest, allowPositionals: true });
         const config = loadConfig();

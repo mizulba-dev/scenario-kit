@@ -61,8 +61,8 @@ scenario-kit/
 | `pause` | ms | wait |
 | `waitFor` | locator | wait for a locator to appear |
 | `mark` | label | record a named timeline marker |
-| `highlight` | locator | draw a red highlight box around a locator (`shots` only, no-op in `record`) |
-| `screenshot` | label | capture the current viewport as a PNG, then clear highlights (`shots` only, no-op in `record`) |
+| `highlight` | locator | draw a red highlight box around a locator (`shots` only, no-op in `record`/`qa`) |
+| `screenshot` | label | capture the current viewport as a PNG, then clear highlights (`shots`/`qa` only, no-op in `record`) |
 
 `locator` is any Playwright locator string (`text=Get started`, `#hero`,
 `[data-testid=cta]`, ...). Unknown step keys are rejected before recording
@@ -143,6 +143,53 @@ recreated at the start of each `shots` run. `highlight`/`screenshot` are
 no-ops during `record`, so the same scenario can drive both a demo video
 (no red boxes) and release-note screenshots (with them).
 
+## QA
+
+`scenario-kit qa <name>` runs the scenario like `record` (with the pseudo-cursor),
+but also watches the page for runtime issues and writes a structured report
+instead of compositing a branded video:
+
+```
+scenario-kit/out/qa/<name>/
+  video.mp4       plain h264 recording (for a human to skim, no intro/outro)
+  report.json     structured result — see below
+  01-hero.png     checkpoint PNGs from `screenshot` steps (same numbering as shots)
+  issue-1.png     auto-captured screenshot at the moment an issue was detected
+  failure.png     auto-captured screenshot if a step itself failed
+```
+
+It collects 4 kinds of issues while the scenario runs: `console-error`
+(`console.error` output), `page-error` (an uncaught exception), `http-error`
+(a response with status >= 400 for a `document`/`xhr`/`fetch` request — other
+resource types like images/fonts are ignored as noise), and `request-failed`
+(a network-level failure). Each issue records the step index (JSON scenarios
+only) and the most recent `mark` label for context. Issue screenshots are
+capped (one per step index, or 10 total when the step index isn't available,
+e.g. TS scenarios) to avoid flooding the output. `highlight` is a no-op in
+`qa` (it would show up in the recording); `screenshot` steps work the same as
+in `shots`. The output directory is wiped and recreated on each run, and
+`qa` requires `ffmpeg`/`ffprobe` on `PATH` like `record`/`run`.
+
+`report.json`:
+
+```json
+{
+  "name": "landing",
+  "ok": false,
+  "video": "video.mp4",
+  "scenarioType": "json",
+  "steps": [{ "index": 0, "step": { "goto": "..." }, "status": "ok" }],
+  "failure": { "stepIndex": 4, "message": "...", "url": "https://...", "screenshot": "failure.png" },
+  "issues": [
+    { "type": "console-error", "message": "...", "pageUrl": "https://...", "stepIndex": 3, "mark": "hero", "screenshot": "issue-1.png" }
+  ]
+}
+```
+
+`ok` is `true` only when the scenario completed without a step failure and
+with zero issues. Exit code is `0` when `ok`, `2` otherwise — read
+`report.json` and the referenced screenshots to see what went wrong.
+
 ## Commands
 
 ```bash
@@ -151,6 +198,7 @@ scenario-kit record <name>            record a scenario to scenario-kit/out/reco
 scenario-kit render <name>            convert + composite into scenario-kit/out/<name>-demo.mp4
 scenario-kit run <name>               record + render
 scenario-kit shots <name>             capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
+scenario-kit qa <name>                record + detect runtime issues, writing scenario-kit/out/qa/<name>/{video.mp4,report.json,*.png}
 scenario-kit login [url]              log in manually in a browser, save the session for logged-in demos
 scenario-kit install-skill            install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
 scenario-kit install-skill --user     install into ~/.claude/skills/scenario-kit/ instead
