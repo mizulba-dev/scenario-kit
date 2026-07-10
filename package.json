@@ -1,6 +1,6 @@
 {
   "name": "scenario-kit",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Record product demo videos with Playwright and composite them into branded mp4s with Remotion, driven by a declarative JSON scenario.",
   "type": "module",
   "license": "MIT",
