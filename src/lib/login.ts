@@ -40,12 +40,23 @@ const ensureAuthIgnored = (dir: string, statePath: string): void => {
   appendFileSync(gitignorePath, `${prefix}.auth/\n`);
 };
 
+// Google が自動操作ブラウザのログインを拒否するため、navigator.webdriver を消し
+// 実機 Chrome を優先する（同梱 Chromium ビルド自体が弾かれることがある）
+const launchLoginBrowser = async () => {
+  const args = ["--disable-blink-features=AutomationControlled"];
+  try {
+    return await chromium.launch({ headless: false, channel: "chrome", args });
+  } catch {
+    return await chromium.launch({ headless: false, args });
+  }
+};
+
 export const runLogin = async (options: LoginOptions): Promise<LoginResult> => {
   if (options.url) assertLoginUrl(options.url);
   const usedDefaultPath = !options.storageState;
   const path = options.storageState ?? join(options.dir, DEFAULT_STORAGE_STATE);
 
-  const browser = await chromium.launch({ headless: false });
+  const browser = await launchLoginBrowser();
   try {
     const context = await browser.newContext();
     const page = await context.newPage();
