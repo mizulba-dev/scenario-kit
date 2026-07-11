@@ -31,14 +31,17 @@ export const loadScenario = async (dir: string, name: string): Promise<ScenarioR
   if (existsSync(tsPath)) {
     const { tsImport } = await import("tsx/esm/api");
     const mod = (await tsImport(pathToFileURL(tsPath).href, import.meta.url)) as {
-      default?: ScenarioRunner;
+      default?: ScenarioRunner | { default?: ScenarioRunner };
     };
-    if (typeof mod.default !== "function") {
+    // "type": "module" のないプロジェクトでは tsx が .ts を CJS として解釈し、
+    // export default が { default: fn } に interop ラップされるため両対応で取り出す
+    const runner = typeof mod.default === "function" ? mod.default : mod.default?.default;
+    if (typeof runner !== "function") {
       throw new UserError(
         `${tsPath}: default export must be a function (ctx: ScenarioContext) => Promise<void>`,
       );
     }
-    return mod.default;
+    return runner;
   }
 
   throw new UserError(`scenario not found: ${name}.json or ${name}.ts in ${dir}`);

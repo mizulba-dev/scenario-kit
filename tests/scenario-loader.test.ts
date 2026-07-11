@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadScenario } from "../src/lib/scenario-loader";
 
-// tsx の tsImport 自体は本物の動的トランスパイルを行う（plain node 実行では確認済み）。
-// Vitest（Vite の ESM ローダー）配下でプロジェクト外の .ts を実 tsImport すると default
-// export が二重ラップされるテスト環境固有の癖があるため、ここではモックしてロジックのみ検証する。
+// tsx の tsImport 自体は本物の動的トランスパイルを行う（plain node 実行では確認済み）
+// ため、ここではモックしてロジックのみ検証する。default の interop ラップ
+// （{ default: fn }）は "type": "module" のないプロジェクトで実際に起きる形。
 vi.mock("tsx/esm/api", () => ({ tsImport: vi.fn() }));
 
 describe("loadScenario", () => {
@@ -72,6 +72,26 @@ describe("loadScenario", () => {
       expect.any(String),
     );
     expect(mark).toHaveBeenCalledWith("from-ts");
+  });
+
+  it("unwraps the CJS interop default ({ default: fn }) from projects without type: module", async () => {
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
+    writeFileSync(
+      join(dir, "landing.ts"),
+      "export default async (ctx) => { ctx.mark('from-cjs'); };\n",
+    );
+
+    const runner = vi.fn(async (ctx: { mark: (label: string) => void }) => ctx.mark("from-cjs"));
+    const { tsImport } = await import("tsx/esm/api");
+    vi.mocked(tsImport).mockResolvedValueOnce({ default: { default: runner, __esModule: true } });
+
+    const loaded = await loadScenario(dir, "landing");
+    const mark = vi.fn();
+    const highlight = vi.fn(async () => {});
+    const screenshot = vi.fn(async () => {});
+    await loaded({ page: {} as never, mark, highlight, screenshot });
+
+    expect(mark).toHaveBeenCalledWith("from-cjs");
   });
 
   it("throws a UserError when the ts scenario has no function default export", async () => {
