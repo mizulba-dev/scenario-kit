@@ -42,14 +42,15 @@ type StepKey = (typeof STEP_KEYS)[number];
 
 const isStepKey = (key: string): key is StepKey => (STEP_KEYS as readonly string[]).includes(key);
 
-const nonEmptyString = (value: unknown, path: string): string => {
+// app-steps.ts と共用するバリデーションヘルパー
+export const nonEmptyString = (value: unknown, path: string): string => {
   if (typeof value !== "string" || value === "") {
     throw new UserError(`${path} must be a non-empty string`);
   }
   return value;
 };
 
-const finiteNumber = (value: unknown, path: string): number => {
+export const finiteNumber = (value: unknown, path: string): number => {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new UserError(`${path} must be a finite number`);
   }
@@ -135,7 +136,8 @@ export const parseScenario = (value: unknown): Scenario => {
 };
 
 const SCROLL_SETTLE_MS = 1500;
-const TYPE_KEY_DELAY_MS = 30;
+// mac-recorder.ts の type ステップも同じタイプ感に揃えるため export する
+export const TYPE_KEY_DELAY_MS = 30;
 
 const runStep = async (step: Step, ctx: ScenarioContext): Promise<void> => {
   const { page, mark, highlight, screenshot } = ctx;

@@ -1,19 +1,23 @@
 #!/usr/bin/env node
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { assertFfmpegAvailable, convertToMp4, probeDuration } from "./lib/ffmpeg";
-import { loadConfig } from "./lib/config";
+import { APP_STEP_KEYS } from "./lib/app-steps";
+import { assertFfmpegAvailable, convertToMp4, probeDimensions, probeDuration } from "./lib/ffmpeg";
+import { loadConfig, type ScenarioKitConfig } from "./lib/config";
 import { UserError } from "./lib/errors";
 import { runInit } from "./lib/init";
 import { runLogin } from "./lib/login";
 import { runInstallSkill } from "./lib/install-skill";
+import { assertDarwinPlatform, startMacRecording } from "./lib/mac-recorder";
 import { startQa } from "./lib/qa";
 import { startRecording } from "./lib/recorder";
 import { renderDemo } from "./lib/render";
-import { loadScenario } from "./lib/scenario-loader";
+import { loadScenario, type LoadedScenario } from "./lib/scenario-loader";
 import { startShots } from "./lib/shots";
 import { STEP_KEYS } from "./lib/steps";
+
+const APP_SCENARIO_UNSUPPORTED_MESSAGE = "app scenarios are not supported by shots/qa yet";
 
 const HELP = `scenario-kit - record and render product demo videos from a JSON scenario
 
@@ -52,6 +56,38 @@ Example scenario-kit/scenarios/landing.json:
       { "mark": "hero" }
     ]
   }
+
+macOS app scenarios (record/render/run only - not shots/qa):
+Add a top-level "app" key naming a macOS app (as used by \`open -a\` / System
+Events) to drive a desktop app instead of a browser. Requires macOS, ffmpeg,
+and cliclick (\`brew install cliclick\`) on PATH, plus Accessibility
+permission for your terminal (System Settings -> Privacy & Security ->
+Accessibility) and, on first run, the screen-recording permission prompt.
+
+  { "app": { "name": "Claude", "width": 1440, "height": 900 },  width/height optional, default 1440x900
+    "steps": [ ... ] }
+
+App steps vocabulary (independent from the web steps above):
+  { "keystroke": "cmd+n" }                 modifiers (cmd/shift/ctrl/opt) joined with "+", then
+                                            enter/esc/tab/space or a single alphanumeric key
+  { "type": "hello" }                      type Unicode text into the focused element
+  { "click": [x, y] }                      move (eased) then click a window-relative point (pt)
+  { "move": [x, y] }                       move the cursor to a window-relative point (pt), no click
+  { "pause": 1000 }                        wait N milliseconds
+  { "mark": "reply" }                      record a named timeline marker
+(known app step keys: ${APP_STEP_KEYS.join(", ")})
+
+Example scenario-kit/scenarios/claude-desktop.json:
+  {
+    "app": { "name": "Claude", "width": 1440, "height": 900 },
+    "steps": [
+      { "keystroke": "cmd+n" },
+      { "type": "こんにちは、今日の天気は？" },
+      { "keystroke": "enter" },
+      { "pause": 3000 },
+      { "mark": "reply" }
+    ]
+  }
 `;
 
 // name はファイル探索・出力パスの組み立てにそのまま使われるため、scenario-kit/ 外への
@@ -72,13 +108,41 @@ const requireName = (args: string[]): string => {
   return name;
 };
 
-const runRecord = async (args: string[]): Promise<number> => {
-  const name = requireName(args);
-  const config = loadConfig();
-  const scenario = await loadScenario(config.scenariosDir, name);
+// record の中核ロジック。runRecord と runRun の両方から、それぞれが解決した同一の
+// LoadedScenario を渡して呼ぶ（呼び出し側で loadScenario を2回呼ぶと、TS シナリオは
+// tsImport のたびに新しい namespace でトップレベル副作用が再実行されうるため避ける）
+const recordLoadedScenario = async (
+  config: ScenarioKitConfig,
+  name: string,
+  loaded: LoadedScenario,
+): Promise<{ videoPath: string }> => {
+  const recordingsDir = join(config.outDir, "recordings");
+
+  if (loaded.kind === "app") {
+    const recording = await startMacRecording({
+      dir: recordingsDir,
+      name,
+      app: loaded.app,
+    });
+    let videoPath: string;
+    let stepsSucceeded = false;
+    try {
+      await recording.run(loaded.steps);
+      stepsSucceeded = true;
+    } finally {
+      // steps 失敗時も必ず finish() で ffmpeg を止め録画を書き切る。stepsSucceeded を
+      // 渡し、失敗時は finish() 内で meta を macapp へ切り替えさせない（旧 driver の
+      // 録画を render が引き続き選べるようにする）。ffmpeg 自身が異常終了していた場合は
+      // finish() 自体が UserError を投げ、その場合は下の rmSync に到達しない
+      ({ videoPath } = await recording.finish({ stepsSucceeded }));
+    }
+    // 新録画が確定した後にだけ、反対 driver（web）の旧成果物を消す
+    rmSync(join(recordingsDir, `${name}.webm`), { force: true });
+    return { videoPath };
+  }
 
   const { page, mark, finish } = await startRecording({
-    dir: join(config.outDir, "recordings"),
+    dir: recordingsDir,
     name,
     storageState: config.storageState,
   });
@@ -86,11 +150,26 @@ const runRecord = async (args: string[]): Promise<number> => {
   let videoPath: string;
   try {
     // 動画には擬似カーソルのみを映す。赤枠アノテーションは shots 専用なので record では no-op
-    await scenario({ page, mark, highlight: async () => {}, screenshot: async () => {} });
+    await loaded.scenario({ page, mark, highlight: async () => {}, screenshot: async () => {} });
   } finally {
     // scenario 失敗時も必ず finish() でブラウザを閉じる（Chromium リーク防止）
     ({ videoPath } = await finish());
   }
+  // render が driver を一意に判定できるよう web も meta を書く（macapp と対称にする）
+  writeFileSync(
+    join(recordingsDir, `${name}-meta.json`),
+    JSON.stringify({ driver: "web" }, null, 1),
+  );
+  // 新録画・meta の書き込みが確定した後にだけ、反対 driver（macapp）の旧成果物を消す
+  rmSync(join(recordingsDir, `${name}.mp4`), { force: true });
+  return { videoPath };
+};
+
+const runRecord = async (args: string[]): Promise<number> => {
+  const name = requireName(args);
+  const config = loadConfig();
+  const loaded = await loadScenario(config.scenariosDir, name);
+  const { videoPath } = await recordLoadedScenario(config, name, loaded);
   console.log(`recorded: ${videoPath}`);
   return 0;
 };
@@ -98,7 +177,10 @@ const runRecord = async (args: string[]): Promise<number> => {
 const runShots = async (args: string[]): Promise<number> => {
   const name = requireName(args);
   const config = loadConfig();
-  const scenario = await loadScenario(config.scenariosDir, name);
+  const loaded = await loadScenario(config.scenariosDir, name);
+  if (loaded.kind === "app") {
+    throw new UserError(APP_SCENARIO_UNSUPPORTED_MESSAGE);
+  }
 
   const dir = join(config.outDir, "shots", name);
   const { page, highlight, screenshot, finish } = await startShots({
@@ -108,7 +190,7 @@ const runShots = async (args: string[]): Promise<number> => {
 
   try {
     // shots モードでは mark は no-op（events.json は出力しない）
-    await scenario({ page, mark: () => {}, highlight, screenshot });
+    await loaded.scenario({ page, mark: () => {}, highlight, screenshot });
   } finally {
     await finish();
   }
@@ -118,12 +200,16 @@ const runShots = async (args: string[]): Promise<number> => {
 
 const runQa = async (args: string[]): Promise<number> => {
   const name = requireName(args);
-  assertFfmpegAvailable();
   const config = loadConfig();
   const scenarioType: "json" | "ts" = existsSync(join(config.scenariosDir, `${name}.json`))
     ? "json"
     : "ts";
-  const scenario = await loadScenario(config.scenariosDir, name);
+  const loaded = await loadScenario(config.scenariosDir, name);
+  if (loaded.kind === "app") {
+    // app シナリオの「未対応」判定（exit 1）を ffmpeg 不在チェック（exit 2）より先に行う
+    throw new UserError(APP_SCENARIO_UNSUPPORTED_MESSAGE);
+  }
+  assertFfmpegAvailable();
 
   const dir = join(config.outDir, "qa", name);
   const session = await startQa({ dir, name, storageState: config.storageState });
@@ -131,7 +217,7 @@ const runQa = async (args: string[]): Promise<number> => {
   let failureMessage: string | undefined;
   try {
     // 録画に写り込むため highlight は no-op（shots 専用、#139 と同じ理由）
-    await scenario({
+    await loaded.scenario({
       page: session.page,
       mark: session.mark,
       highlight: async () => {},
@@ -148,21 +234,55 @@ const runQa = async (args: string[]): Promise<number> => {
   return report.ok ? 0 : 2;
 };
 
+// recordings/<name>-meta.json の driver で入力ファイルの種類を一意に決める（存在チェックの
+// 優先順位に頼ると、driver 切り替え直後に残った旧ファイルを誤って拾いうる）。meta が無い・
+// 壊れている場合だけ録画ファイルの存在から推定する: webm があれば macapp 導入前の web 録画
+// （後方互換）、mp4 しか無ければ meta を失った macapp 録画として扱う
+const readRecordingDriver = (recordingsDir: string, name: string): "web" | "macapp" => {
+  const metaPath = join(recordingsDir, `${name}-meta.json`);
+  if (existsSync(metaPath)) {
+    try {
+      const value: unknown = JSON.parse(readFileSync(metaPath, "utf8"));
+      const driver =
+        typeof value === "object" && value !== null
+          ? (value as Record<string, unknown>).driver
+          : undefined;
+      return driver === "macapp" ? "macapp" : "web";
+    } catch {
+      // 壊れた meta はファイル存在からの推定へフォールバック
+    }
+  }
+  if (
+    !existsSync(join(recordingsDir, `${name}.webm`)) &&
+    existsSync(join(recordingsDir, `${name}.mp4`))
+  ) {
+    return "macapp";
+  }
+  return "web";
+};
+
 const runRender = async (args: string[]): Promise<number> => {
   const name = requireName(args);
   assertFfmpegAvailable();
   const config = loadConfig();
 
-  const webm = join(config.outDir, "recordings", `${name}.webm`);
-  if (!existsSync(webm)) {
-    throw new UserError(`recording not found: ${webm} (run "scenario-kit record ${name}" first)`);
+  const recordingsDir = join(config.outDir, "recordings");
+  const driver = readRecordingDriver(recordingsDir, name);
+  const recording = join(recordingsDir, driver === "macapp" ? `${name}.mp4` : `${name}.webm`);
+  if (!existsSync(recording)) {
+    throw new UserError(
+      `recording not found: ${recording} (run "scenario-kit record ${name}" first)`,
+    );
   }
+  const windowStyle: "browser" | "bare" = driver === "macapp" ? "bare" : "browser";
 
   const publicDir = join(config.outDir, "public");
   mkdirSync(publicDir, { recursive: true });
   const mp4 = join(publicDir, `${name}.mp4`);
-  convertToMp4(webm, mp4);
+  convertToMp4(recording, mp4);
   const durationSec = probeDuration(mp4);
+  // ウィンドウ枠を録画のアスペクト比に合わせる（app シナリオは録画サイズが可変のため）
+  const { width: videoWidth, height: videoHeight } = probeDimensions(mp4);
 
   // Remotion は publicDir 基準の staticFile しか参照できないため、ロゴをコピーして
   // brand.logo をファイルパスから staticFile 名に差し替える
@@ -187,16 +307,26 @@ const runRender = async (args: string[]): Promise<number> => {
     outFile,
     intro: config.intro,
     outro: config.outro,
+    windowStyle,
+    videoWidth,
+    videoHeight,
   });
   console.log(`rendered: ${outFile}`);
   return 0;
 };
 
 const runRun = async (args: string[]): Promise<number> => {
+  const name = requireName(args);
+  const config = loadConfig();
+  const loaded = await loadScenario(config.scenariosDir, name);
+  if (loaded.kind === "app") {
+    // 非 macOS では「app シナリオ非対応」（exit 1）を ffmpeg 不在チェック（exit 2）より先に報告する
+    assertDarwinPlatform();
+  }
   // record 完了後に ffmpeg 未導入で失敗するのを避けるため、録画前に先んじて確認する
   assertFfmpegAvailable();
-  const recordCode = await runRecord(args);
-  if (recordCode !== 0) return recordCode;
+  const { videoPath } = await recordLoadedScenario(config, name, loaded);
+  console.log(`recorded: ${videoPath}`);
   return runRender(args);
 };
 

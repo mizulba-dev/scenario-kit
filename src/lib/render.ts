@@ -14,6 +14,9 @@ export interface RenderOptions {
   outFile: string;
   intro: boolean;
   outro: boolean;
+  windowStyle?: "browser" | "bare";
+  videoWidth?: number;
+  videoHeight?: number;
 }
 
 export const renderDemo = async (options: RenderOptions): Promise<void> => {
@@ -31,6 +34,9 @@ export const renderDemo = async (options: RenderOptions): Promise<void> => {
     brand: options.brand,
     intro: options.intro,
     outro: options.outro,
+    windowStyle: options.windowStyle ?? "browser",
+    videoWidth: options.videoWidth,
+    videoHeight: options.videoHeight,
   };
 
   const composition = await selectComposition({

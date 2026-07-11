@@ -1,18 +1,54 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "scenario-kit scenario",
-  "description": "A declarative Playwright recording scenario for scenario-kit (scenario-kit/<name>.json).",
-  "type": "object",
-  "required": ["steps"],
-  "additionalProperties": false,
-  "properties": {
-    "$schema": { "type": "string" },
-    "steps": {
-      "type": "array",
-      "items": { "$ref": "#/definitions/step" }
-    }
-  },
+  "description": "A declarative recording scenario for scenario-kit (scenario-kit/<name>.json). A web scenario (Playwright) has a \"steps\" array; an app scenario (macOS desktop app) additionally has a top-level \"app\" key and uses a different steps vocabulary.",
+  "oneOf": [{ "$ref": "#/definitions/webScenario" }, { "$ref": "#/definitions/appScenario" }],
   "definitions": {
+    "webScenario": {
+      "type": "object",
+      "required": ["steps"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/step" }
+        }
+      }
+    },
+    "appScenario": {
+      "type": "object",
+      "required": ["app", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": { "type": "string" },
+        "app": { "$ref": "#/definitions/app" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/appStep" }
+        }
+      }
+    },
+    "app": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "macOS application name, as used by `open -a` / System Events."
+        },
+        "width": {
+          "type": "number",
+          "description": "Window width in points. Optional, default 1440."
+        },
+        "height": {
+          "type": "number",
+          "description": "Window height in points. Optional, default 900."
+        }
+      }
+    },
     "step": {
       "type": "object",
       "minProperties": 1,
@@ -76,6 +112,69 @@
           "type": "string",
           "minLength": 1,
           "description": "Captures the current viewport as a PNG with this label, then clears highlights (shots only)."
+        }
+      }
+    },
+    "appStep": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "keystroke": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Modifiers (cmd/shift/ctrl/opt) joined with \"+\", then enter/esc/tab/space or a single alphanumeric key, e.g. \"cmd+n\", \"cmd+shift+n\", \"enter\"."
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Types Unicode text into the focused element."
+        },
+        "click": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "x coordinate, window-relative points (non-negative integer)."
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "y coordinate, window-relative points (non-negative integer)."
+            }
+          ],
+          "description": "[x, y] - moves the cursor there (eased), then clicks."
+        },
+        "move": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "x coordinate, window-relative points (non-negative integer)."
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "y coordinate, window-relative points (non-negative integer)."
+            }
+          ],
+          "description": "[x, y] - moves the cursor there (eased), no click."
+        },
+        "pause": {
+          "type": "number",
+          "description": "Waits this many milliseconds."
+        },
+        "mark": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Records a named timeline marker in the recording's events log."
         }
       }
     }

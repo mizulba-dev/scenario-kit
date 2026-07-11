@@ -64,3 +64,33 @@ export const probeDuration = (file: string): number =>
       file,
     ]).toString(),
   );
+
+export interface VideoDimensions {
+  width: number;
+  height: number;
+}
+
+export const parseDimensions = (output: string): VideoDimensions => {
+  const match = output.trim().match(/^(\d+)x(\d+)$/);
+  const width = match ? Number.parseInt(match[1]!, 10) : 0;
+  const height = match ? Number.parseInt(match[2]!, 10) : 0;
+  if (width <= 0 || height <= 0) {
+    throw new Error(`could not parse dimensions from ffprobe output: ${JSON.stringify(output)}`);
+  }
+  return { width, height };
+};
+
+export const probeDimensions = (file: string): VideoDimensions =>
+  parseDimensions(
+    execFileSync("ffprobe", [
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "csv=s=x:p=0",
+      file,
+    ]).toString(),
+  );

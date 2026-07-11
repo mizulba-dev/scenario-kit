@@ -97,6 +97,50 @@ export default defineScenario(async ({ page, mark }) => {
 });
 ```
 
+## macOS app scenarios (desktop apps, e.g. Claude Desktop)
+
+`record`/`render`/`run` can also drive a native macOS app instead of a
+browser — `shots`/`qa` don't support this yet. Add a top-level `app` key
+naming the app (as used by `open -a` / System Events):
+
+```json
+{
+  "app": { "name": "Claude", "width": 1440, "height": 900 },
+  "steps": [
+    { "keystroke": "cmd+n" },
+    { "type": "こんにちは、今日の天気は？" },
+    { "keystroke": "enter" },
+    { "pause": 3000 },
+    { "mark": "reply" }
+  ]
+}
+```
+
+`width`/`height` are the window size in points, default `1440x900`. App
+scenarios use their own steps vocabulary (JSON only — no `.ts` escape hatch
+yet):
+
+| step | argument | effect |
+| --- | --- | --- |
+| `keystroke` | `"cmd+n"` | modifiers (`cmd`/`shift`/`ctrl`/`opt`) joined with `+`, then `enter`/`esc`/`tab`/`space` or a single alphanumeric key |
+| `type` | text | type Unicode text into the focused element |
+| `click` | `[x, y]` | move (eased) then click a window-relative point (pt) |
+| `move` | `[x, y]` | move the cursor to a window-relative point (pt), no click |
+| `pause` | ms | wait |
+| `mark` | label | record a named timeline marker |
+
+Requires macOS, `ffmpeg` on `PATH` (screen capture, not just conversion),
+and [`cliclick`](https://github.com/BlueM/cliclick) on `PATH`
+(`brew install cliclick`). Grant your terminal app Accessibility permission
+(System Settings → Privacy & Security → Accessibility) before the first run
+— `record` preflights this and fails fast with instructions otherwise.
+Screen-recording permission can't be preflighted; macOS prompts for it the
+first time `ffmpeg` captures the screen, and that prompt shows up in the
+recording itself. Run `record` once on a throwaway scenario first to grant
+the permission, then record for real. The rendered video uses a bare window
+frame (rounded corners + shadow, no fake browser bar) since the real app
+window already has its own title bar.
+
 ## Logged-in demos (authentication)
 
 To record pages behind a login, save a logged-in session once:

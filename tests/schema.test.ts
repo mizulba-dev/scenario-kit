@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
+import { APP_STEP_KEYS, parseAppScenario } from "../src/lib/app-steps";
 import { parseScenario, STEP_KEYS } from "../src/lib/steps";
 
 const schemaPath = join(
@@ -14,9 +15,18 @@ const schemaPath = join(
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 const validateSchema = new Ajv({ strict: false }).compile(schema);
 
+// loadScenario と同じ分岐（トップレベル "app" キーの有無）で web/app どちらの
+// ランタイムバリデータに通すかを決める
+const isAppScenarioValue = (value: unknown): boolean =>
+  typeof value === "object" && value !== null && !Array.isArray(value) && "app" in value;
+
 const runtimeAccepts = (value: unknown): boolean => {
   try {
-    parseScenario(value);
+    if (isAppScenarioValue(value)) {
+      parseAppScenario(value);
+    } else {
+      parseScenario(value);
+    }
     return true;
   } catch {
     return false;
@@ -24,9 +34,14 @@ const runtimeAccepts = (value: unknown): boolean => {
 };
 
 describe("scenario.schema.json", () => {
-  it("documents exactly the step keys implemented by the runtime validator", () => {
+  it("documents exactly the web step keys implemented by the runtime validator", () => {
     const schemaKeys = Object.keys(schema.definitions.step.properties).sort();
     expect(schemaKeys).toEqual([...STEP_KEYS].sort());
+  });
+
+  it("documents exactly the app step keys implemented by the runtime validator", () => {
+    const schemaKeys = Object.keys(schema.definitions.appStep.properties).sort();
+    expect(schemaKeys).toEqual([...APP_STEP_KEYS].sort());
   });
 
   it("is valid JSON", () => {
@@ -60,6 +75,31 @@ describe("schema/runtime parity", () => {
     { name: "valid highlight", value: { steps: [{ highlight: "x" }] } },
     { name: "highlight with empty string", value: { steps: [{ highlight: "" }] } },
     { name: "valid screenshot", value: { steps: [{ screenshot: "x" }] } },
+    { name: "valid app scenario, minimal", value: { app: { name: "Claude" }, steps: [] } },
+    {
+      name: "valid app scenario with all app steps",
+      value: {
+        app: { name: "Claude", width: 1440, height: 900 },
+        steps: [
+          { keystroke: "cmd+n" },
+          { type: "hello" },
+          { click: [10, 20] },
+          { move: [10, 20] },
+          { pause: 500 },
+          { mark: "reply" },
+        ],
+      },
+    },
+    { name: "app scenario missing app.name", value: { app: {}, steps: [] } },
+    {
+      name: "app scenario with unknown app key",
+      value: { app: { name: "Claude", foo: 1 }, steps: [] },
+    },
+    {
+      name: "app scenario mixing a web step key",
+      value: { app: { name: "Claude" }, steps: [{ goto: "https://example.com" }] },
+    },
+    { name: "app key on an otherwise-empty object", value: { app: { name: "Claude" } } },
   ];
 
   for (const { name, value } of cases) {

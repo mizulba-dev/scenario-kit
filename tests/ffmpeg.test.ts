@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseDuration } from "../src/lib/ffmpeg";
+import { parseDimensions, parseDuration } from "../src/lib/ffmpeg";
 
 describe("parseDuration", () => {
   it("parses ffprobe output with trailing newline", () => {
@@ -10,6 +10,18 @@ describe("parseDuration", () => {
     expect(() => parseDuration("N/A\n")).toThrow("ffprobe");
     expect(() => parseDuration("")).toThrow("ffprobe");
     expect(() => parseDuration("0")).toThrow("ffprobe");
+  });
+});
+
+describe("parseDimensions", () => {
+  it("parses WxH csv output with trailing newline", () => {
+    expect(parseDimensions("1200x800\n")).toEqual({ width: 1200, height: 800 });
+  });
+
+  it("rejects empty, partial, and zero-sized output", () => {
+    expect(() => parseDimensions("")).toThrow("ffprobe");
+    expect(() => parseDimensions("1200x\n")).toThrow("ffprobe");
+    expect(() => parseDimensions("0x800\n")).toThrow("ffprobe");
   });
 });
 

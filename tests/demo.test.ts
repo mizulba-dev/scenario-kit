@@ -3,7 +3,7 @@ import { Img, Sequence, staticFile } from "remotion";
 import { describe, expect, it } from "vitest";
 import type { Brand } from "../src/lib/brand";
 import { INTRO_FRAMES, OUTRO_FRAMES, videoFrames } from "../src/lib/timing";
-import { Demo, type DemoProps, Wordmark } from "../src/remotion/Demo";
+import { computeWindowWidth, Demo, type DemoProps, Wordmark } from "../src/remotion/Demo";
 
 const brand: Brand = {
   name: "Demo",
@@ -20,6 +20,7 @@ const baseProps: DemoProps = {
   brand,
   intro: true,
   outro: true,
+  windowStyle: "browser",
 };
 
 // Demo/Wordmark はトップレベルで hooks を使わないため、レンダラーを介さず直接呼び出して
@@ -43,10 +44,22 @@ describe("Demo", () => {
     expect(seqs[1]!.props.from).toBe(INTRO_FRAMES);
     expect(seqs[1]!.props.durationInFrames).toBe(frames);
     expect((seqs[1]!.props.children as ReactElement<any>).props.fadeOut).toBe(true);
+    expect((seqs[1]!.props.children as ReactElement<any>).props.windowStyle).toBe("browser");
 
     expect(seqs[2]!.type).toBe(Sequence);
     expect(seqs[2]!.props.from).toBe(INTRO_FRAMES + frames);
     expect(seqs[2]!.props.durationInFrames).toBe(OUTRO_FRAMES);
+  });
+
+  it('passes windowStyle: "bare" through to the window frame for macapp recordings', () => {
+    const seqs = sequencesOf(Demo({ ...baseProps, windowStyle: "bare" }) as ReactElement);
+    expect((seqs[1]!.props.children as ReactElement<any>).props.windowStyle).toBe("bare");
+  });
+
+  it('defaults windowStyle to "browser" when omitted from props', () => {
+    const { windowStyle: _windowStyle, ...propsWithoutWindowStyle } = baseProps;
+    const seqs = sequencesOf(Demo(propsWithoutWindowStyle as DemoProps) as ReactElement);
+    expect((seqs[1]!.props.children as ReactElement<any>).props.windowStyle).toBe("browser");
   });
 
   it("drops the intro sequence and starts the window at frame 0 when intro is false", () => {
@@ -74,6 +87,38 @@ describe("Demo", () => {
     expect(seqs[0]!.props.from).toBe(0);
     expect(seqs[0]!.props.durationInFrames).toBe(frames);
     expect((seqs[0]!.props.children as ReactElement<any>).props.fadeOut).toBe(false);
+  });
+});
+
+describe("computeWindowWidth", () => {
+  it("keeps the legacy fixed width for the standard 1440x900 web recording", () => {
+    expect(computeWindowWidth({ videoWidth: 1440, videoHeight: 900, windowStyle: "browser" })).toBe(
+      1520,
+    );
+  });
+
+  it("keeps the legacy fixed width when dimensions are unknown", () => {
+    expect(computeWindowWidth({ windowStyle: "browser" })).toBe(1520);
+    expect(computeWindowWidth({ videoWidth: 0, videoHeight: 0, windowStyle: "bare" })).toBe(1520);
+  });
+
+  it("shrinks the width so a tall recording fits the frame height", () => {
+    // 1000x1000 の bare 録画: 994（高さ上限）に収まる幅へ
+    expect(computeWindowWidth({ videoWidth: 1000, videoHeight: 1000, windowStyle: "bare" })).toBe(
+      994,
+    );
+  });
+
+  it("reserves the browser bar height when windowStyle is browser", () => {
+    expect(
+      computeWindowWidth({ videoWidth: 1000, videoHeight: 1000, windowStyle: "browser" }),
+    ).toBe(950);
+  });
+
+  it("caps wide recordings at the legacy fixed width", () => {
+    expect(computeWindowWidth({ videoWidth: 2560, videoHeight: 900, windowStyle: "bare" })).toBe(
+      1520,
+    );
   });
 });
 

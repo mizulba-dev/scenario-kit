@@ -25,15 +25,35 @@ describe("loadScenario", () => {
       JSON.stringify({ steps: [{ goto: "https://example.com" }, { mark: "start" }] }),
     );
 
-    const runner = await loadScenario(dir, "landing");
+    const loaded = await loadScenario(dir, "landing");
+    expect(loaded.kind).toBe("web");
     const goto = vi.fn(async () => {});
     const mark = vi.fn();
     const highlight = vi.fn(async () => {});
     const screenshot = vi.fn(async () => {});
-    await runner({ page: { goto } as never, mark, highlight, screenshot });
+    if (loaded.kind !== "web") throw new Error("expected web scenario");
+    await loaded.scenario({ page: { goto } as never, mark, highlight, screenshot });
 
     expect(goto).toHaveBeenCalledWith("https://example.com", { waitUntil: "networkidle" });
     expect(mark).toHaveBeenCalledWith("start");
+  });
+
+  it("loads a <name>.json scenario with a top-level app key as an app scenario", async () => {
+    dir = mkdtempSync(join(tmpdir(), "scenario-kit-scenario-"));
+    writeFileSync(
+      join(dir, "claude-desktop.json"),
+      JSON.stringify({
+        app: { name: "Claude" },
+        steps: [{ keystroke: "cmd+n" }, { mark: "start" }],
+      }),
+    );
+
+    const loaded = await loadScenario(dir, "claude-desktop");
+    expect(loaded).toEqual({
+      kind: "app",
+      app: { name: "Claude", width: 1440, height: 900 },
+      steps: [{ keystroke: "cmd+n" }, { mark: "start" }],
+    });
   });
 
   it("prefers <name>.json over <name>.ts when both exist", async () => {
@@ -41,11 +61,12 @@ describe("loadScenario", () => {
     writeFileSync(join(dir, "landing.json"), JSON.stringify({ steps: [{ mark: "json" }] }));
     writeFileSync(join(dir, "landing.ts"), "export default async (ctx) => { ctx.mark('ts'); };\n");
 
-    const runner = await loadScenario(dir, "landing");
+    const loaded = await loadScenario(dir, "landing");
     const mark = vi.fn();
     const highlight = vi.fn(async () => {});
     const screenshot = vi.fn(async () => {});
-    await runner({ page: {} as never, mark, highlight, screenshot });
+    if (loaded.kind !== "web") throw new Error("expected web scenario");
+    await loaded.scenario({ page: {} as never, mark, highlight, screenshot });
 
     expect(mark).toHaveBeenCalledWith("json");
   });
@@ -65,7 +86,8 @@ describe("loadScenario", () => {
     const mark = vi.fn();
     const highlight = vi.fn(async () => {});
     const screenshot = vi.fn(async () => {});
-    await loaded({ page: {} as never, mark, highlight, screenshot });
+    if (loaded.kind !== "web") throw new Error("expected web scenario");
+    await loaded.scenario({ page: {} as never, mark, highlight, screenshot });
 
     expect(tsImport).toHaveBeenCalledWith(
       expect.stringContaining("landing.ts"),
@@ -89,7 +111,8 @@ describe("loadScenario", () => {
     const mark = vi.fn();
     const highlight = vi.fn(async () => {});
     const screenshot = vi.fn(async () => {});
-    await loaded({ page: {} as never, mark, highlight, screenshot });
+    if (loaded.kind !== "web") throw new Error("expected web scenario");
+    await loaded.scenario({ page: {} as never, mark, highlight, screenshot });
 
     expect(mark).toHaveBeenCalledWith("from-cjs");
   });

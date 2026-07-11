@@ -19,6 +19,7 @@ export const Root: React.FC = () => (
         durationSec: 10,
         intro: true,
         outro: true,
+        windowStyle: "browser",
         brand: {
           name: "Demo",
           tagline: "tagline",
