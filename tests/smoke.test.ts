@@ -10,7 +10,7 @@ import {
   type Issue,
   type MutableIssueShotState,
   type StepReportEntry,
-} from "../src/lib/qa";
+} from "../src/lib/smoke";
 
 describe("safeUrl", () => {
   it("returns the value when getUrl succeeds", () => {

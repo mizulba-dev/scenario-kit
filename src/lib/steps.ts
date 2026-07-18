@@ -22,7 +22,7 @@ export interface ScenarioContext {
   mark: (label: string) => void;
   highlight: (locator: string) => Promise<void>;
   screenshot: (label: string) => Promise<void>;
-  /** qa が step 境界（進行位置）を追跡するための内部フック。record/shots では未指定 */
+  /** smoke が step 境界（進行位置）を追跡するための内部フック。record/shots では未指定 */
   onStep?: (step: Step, index: number) => void;
 }
 

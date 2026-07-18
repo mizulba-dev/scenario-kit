@@ -61,8 +61,8 @@ scenario-kit/
 | `pause` | ms | wait |
 | `waitFor` | locator | wait for a locator to appear |
 | `mark` | label | record a named timeline marker |
-| `highlight` | locator | draw a red highlight box around a locator (`shots` only, no-op in `record`/`qa`) |
-| `screenshot` | label | capture the current viewport as a PNG, then clear highlights (`shots`/`qa` only, no-op in `record`) |
+| `highlight` | locator | draw a red highlight box around a locator (`shots` only, no-op in `record`/`smoke`) |
+| `screenshot` | label | capture the current viewport as a PNG, then clear highlights (`shots`/`smoke` only, no-op in `record`) |
 
 `locator` is any Playwright locator string (`text=Get started`, `#hero`,
 `[data-testid=cta]`, ...). Unknown step keys are rejected before recording
@@ -100,7 +100,7 @@ export default defineScenario(async ({ page, mark }) => {
 ## macOS app scenarios (desktop apps, e.g. Claude Desktop)
 
 `record`/`render`/`run` can also drive a native macOS app instead of a
-browser — `shots`/`qa` don't support this yet. Add a top-level `app` key
+browser — `shots`/`smoke` don't support this yet. Add a top-level `app` key
 naming the app (as used by `open -a` / System Events):
 
 ```json
@@ -187,14 +187,15 @@ recreated at the start of each `shots` run. `highlight`/`screenshot` are
 no-ops during `record`, so the same scenario can drive both a demo video
 (no red boxes) and release-note screenshots (with them).
 
-## QA
+## Smoke
 
-`scenario-kit qa <name>` runs the scenario like `record` (with the pseudo-cursor),
+`scenario-kit smoke <name>` runs the scenario like `record` (with the pseudo-cursor),
 but also watches the page for runtime issues and writes a structured report
-instead of compositing a branded video:
+instead of compositing a branded video — a light verification pass that leaves
+reviewable evidence (video, screenshots, report):
 
 ```
-scenario-kit/out/qa/<name>/
+scenario-kit/out/smoke/<name>/
   video.mp4       plain h264 recording (for a human to skim, no intro/outro)
   report.json     structured result — see below
   01-hero.png     checkpoint PNGs from `screenshot` steps (same numbering as shots)
@@ -210,9 +211,9 @@ resource types like images/fonts are ignored as noise), and `request-failed`
 only) and the most recent `mark` label for context. Issue screenshots are
 capped (one per step index, or 10 total when the step index isn't available,
 e.g. TS scenarios) to avoid flooding the output. `highlight` is a no-op in
-`qa` (it would show up in the recording); `screenshot` steps work the same as
+`smoke` (it would show up in the recording); `screenshot` steps work the same as
 in `shots`. The output directory is wiped and recreated on each run, and
-`qa` requires `ffmpeg`/`ffprobe` on `PATH` like `record`/`run`.
+`smoke` requires `ffmpeg`/`ffprobe` on `PATH` like `record`/`run`.
 
 `report.json`:
 
@@ -242,7 +243,7 @@ scenario-kit record <name>            record a scenario to scenario-kit/out/reco
 scenario-kit render <name>            convert + composite into scenario-kit/out/<name>-demo.mp4
 scenario-kit run <name>               record + render
 scenario-kit shots <name>             capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
-scenario-kit qa <name>                record + detect runtime issues, writing scenario-kit/out/qa/<name>/{video.mp4,report.json,*.png}
+scenario-kit smoke <name>             record + detect runtime issues, writing scenario-kit/out/smoke/<name>/{video.mp4,report.json,*.png}
 scenario-kit login [url]              log in manually in a browser, save the session for logged-in demos
 scenario-kit install-skill            install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
 scenario-kit install-skill --user     install into ~/.claude/skills/scenario-kit/ instead

@@ -30,7 +30,7 @@ export interface StepReportEntry {
   status: "ok" | "failed";
 }
 
-export interface QaReport {
+export interface SmokeReport {
   name: string;
   ok: boolean;
   video: string;
@@ -97,7 +97,7 @@ export interface BuildReportInput {
   issues: Issue[];
 }
 
-export const buildReport = (input: BuildReportInput): QaReport => ({
+export const buildReport = (input: BuildReportInput): SmokeReport => ({
   name: input.name,
   ok: input.failure === null && input.issues.length === 0,
   video: input.video,
@@ -107,7 +107,7 @@ export const buildReport = (input: BuildReportInput): QaReport => ({
   issues: input.issues,
 });
 
-export interface QaOptions {
+export interface SmokeOptions {
   dir: string;
   name: string;
   viewport?: { width: number; height: number };
@@ -115,24 +115,24 @@ export interface QaOptions {
   storageState?: string;
 }
 
-export interface QaFinishInput {
+export interface SmokeFinishInput {
   scenarioType: "json" | "ts";
   /** step 実行中に投げられた例外のメッセージ。未指定なら走行は正常完走とみなす */
   failureMessage?: string;
 }
 
-export interface QaFinishResult {
-  report: QaReport;
+export interface SmokeFinishResult {
+  report: SmokeReport;
   reportPath: string;
   videoPath: string;
 }
 
-export interface QaSession {
+export interface SmokeSession {
   page: Page;
   mark: (label: string) => void;
   screenshot: (label: string) => Promise<void>;
   onStep: (step: Step, index: number) => void;
-  finish: (input: QaFinishInput) => Promise<QaFinishResult>;
+  finish: (input: SmokeFinishInput) => Promise<SmokeFinishResult>;
 }
 
 // frame() は Service Worker 起源のリクエストなど frame が確立できないケースで例外を
@@ -145,7 +145,7 @@ export const safeUrl = (getUrl: () => string): string => {
   }
 };
 
-export const startQa = async (options: QaOptions): Promise<QaSession> => {
+export const startSmoke = async (options: SmokeOptions): Promise<SmokeSession> => {
   const { dir, name } = options;
   const viewport = options.viewport ?? { width: 1440, height: 900 };
   // 前回実行の残骸が混ざらないよう、実行冒頭で出力ディレクトリを作り直す
@@ -288,7 +288,7 @@ export const startQa = async (options: QaOptions): Promise<QaSession> => {
       const videoFileName = "video.mp4";
       const videoPath = join(dir, videoFileName);
       let conversionError: unknown;
-      let report: QaReport;
+      let report: SmokeReport;
       let reportPath: string;
 
       try {

@@ -10,14 +10,14 @@ import { runInit } from "./lib/init";
 import { runLogin } from "./lib/login";
 import { runInstallSkill } from "./lib/install-skill";
 import { assertDarwinPlatform, startMacRecording } from "./lib/mac-recorder";
-import { startQa } from "./lib/qa";
+import { startSmoke } from "./lib/smoke";
 import { startRecording } from "./lib/recorder";
 import { renderDemo } from "./lib/render";
 import { loadScenario, type LoadedScenario } from "./lib/scenario-loader";
 import { startShots } from "./lib/shots";
 import { STEP_KEYS } from "./lib/steps";
 
-const APP_SCENARIO_UNSUPPORTED_MESSAGE = "app scenarios are not supported by shots/qa yet";
+const APP_SCENARIO_UNSUPPORTED_MESSAGE = "app scenarios are not supported by shots/smoke yet";
 
 const HELP = `scenario-kit - record and render product demo videos from a JSON scenario
 
@@ -26,7 +26,7 @@ Usage:
   scenario-kit render <name>       Convert + composite the recording into scenario-kit/out/<name>-demo.mp4
   scenario-kit run <name>          record + render
   scenario-kit shots <name>        Capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
-  scenario-kit qa <name>           Record + detect runtime issues, writing scenario-kit/out/qa/<name>/{video.mp4,report.json,*.png}
+  scenario-kit smoke <name>        Record + detect runtime issues, writing scenario-kit/out/smoke/<name>/{video.mp4,report.json,*.png}
   scenario-kit login [url]         Open a browser to log in manually, then save the session (Playwright storageState) for logged-in recordings
   scenario-kit init                Scaffold scenario-kit/ (config.json + scenarios/landing.json) in the current project
   scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
@@ -44,7 +44,7 @@ Steps vocabulary (scenario-kit/scenarios/<name>.json "steps" array, one key per 
   { "waitFor": ".hero" }                   wait for a locator to appear
   { "mark": "hero" }                       record a named timeline marker
   { "highlight": "text=Get started" }      draw a red highlight box around a locator (shots only)
-  { "screenshot": "hero" }                 capture the current viewport as a PNG (shots/qa only), then clear highlights
+  { "screenshot": "hero" }                 capture the current viewport as a PNG (shots/smoke only), then clear highlights
 (known step keys: ${STEP_KEYS.join(", ")} - unknown keys are rejected before recording starts)
 
 Example scenario-kit/scenarios/landing.json:
@@ -57,7 +57,7 @@ Example scenario-kit/scenarios/landing.json:
     ]
   }
 
-macOS app scenarios (record/render/run only - not shots/qa):
+macOS app scenarios (record/render/run only - not shots/smoke):
 Add a top-level "app" key naming a macOS app (as used by \`open -a\` / System
 Events) to drive a desktop app instead of a browser. Requires macOS, ffmpeg,
 and cliclick (\`brew install cliclick\`) on PATH, plus Accessibility
@@ -198,7 +198,7 @@ const runShots = async (args: string[]): Promise<number> => {
   return 0;
 };
 
-const runQa = async (args: string[]): Promise<number> => {
+const runSmoke = async (args: string[]): Promise<number> => {
   const name = requireName(args);
   const config = loadConfig();
   const scenarioType: "json" | "ts" = existsSync(join(config.scenariosDir, `${name}.json`))
@@ -211,8 +211,8 @@ const runQa = async (args: string[]): Promise<number> => {
   }
   assertFfmpegAvailable();
 
-  const dir = join(config.outDir, "qa", name);
-  const session = await startQa({ dir, name, storageState: config.storageState });
+  const dir = join(config.outDir, "smoke", name);
+  const session = await startSmoke({ dir, name, storageState: config.storageState });
 
   let failureMessage: string | undefined;
   try {
@@ -229,7 +229,7 @@ const runQa = async (args: string[]): Promise<number> => {
   }
 
   const { report, reportPath, videoPath } = await session.finish({ scenarioType, failureMessage });
-  console.log(`qa: ${videoPath}`);
+  console.log(`smoke: ${videoPath}`);
   console.log(`report: ${reportPath}`);
   return report.ok ? 0 : 2;
 };
@@ -342,8 +342,14 @@ const main = async (): Promise<number> => {
         return await runRun(rest);
       case "shots":
         return await runShots(rest);
+      case "smoke":
+        return await runSmoke(rest);
+      // 配布済みの旧 SKILL.md が "qa" を叩いても壊れないための後方互換エイリアス
       case "qa":
-        return await runQa(rest);
+        console.error(
+          'note: "qa" was renamed to "smoke" (output now goes to scenario-kit/out/smoke/)',
+        );
+        return await runSmoke(rest);
       case "login": {
         const { positionals } = parseArgs({ args: rest, allowPositionals: true });
         const config = loadConfig();
