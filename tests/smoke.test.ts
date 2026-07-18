@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildReport,
   classifyIssue,
+  isConnectionClassError,
   MAX_ISSUE_SHOTS_WITHOUT_STEP_INDEX,
   reserveIssueShot,
   safeUrl,
@@ -48,6 +49,45 @@ describe("classifyIssue", () => {
     { status: 304, resourceType: "document", desc: "not-modified document" },
   ])("does not flag $desc", ({ status, resourceType }) => {
     expect(classifyIssue({ status, resourceType })).toBeNull();
+  });
+});
+
+describe("isConnectionClassError", () => {
+  it.each([
+    { message: "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/" },
+    { message: "page.goto: net::ERR_CONNECTION_RESET at http://localhost:5173/" },
+    { message: "page.goto: net::ERR_NAME_NOT_RESOLVED at http://nope.invalid/" },
+    { message: "page.goto: net::ERR_ADDRESS_UNREACHABLE at http://10.0.0.1/" },
+    { message: "page.goto: net::ERR_CONNECTION_TIMED_OUT at http://192.0.2.1/" },
+    // TS シナリオが生の Page から frame 経由で navigate した場合のプレフィックス
+    { message: "frame.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/" },
+  ])("flags connection-class navigation failure: $message", ({ message }) => {
+    expect(isConnectionClassError(message)).toBe(true);
+  });
+
+  it.each([
+    { message: "page.goto: Timeout 30000ms exceeded.", desc: "navigation timeout (slow app)" },
+    { message: "locator.click: Timeout 30000ms exceeded.", desc: "locator timeout" },
+    { message: "locator not found: text=Sign up", desc: "assertion-style failure" },
+    { message: "500 http://localhost/api", desc: "http error text" },
+    {
+      message: "page.goto: net::ERR_ABORTED at http://localhost/",
+      desc: "aborted (not connection-class)",
+    },
+    {
+      // locator timeout の Call log にセレクタとして marker 文字列が写り込んでも、
+      // navigation 失敗ではないので接続クラスと誤判定しない（fail 側に倒す）
+      message:
+        "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('text=net::ERR_CONNECTION_REFUSED')",
+      desc: "locator timeout whose selector text contains a connection marker",
+    },
+    {
+      // marker が navigation プレフィックスの直後でなく本文中に現れるだけのケース
+      message: "some other error mentioning net::ERR_CONNECTION_REFUSED in prose",
+      desc: "marker not anchored to a navigation failure",
+    },
+  ])("does not flag $desc", ({ message }) => {
+    expect(isConnectionClassError(message)).toBe(false);
   });
 });
 
@@ -129,7 +169,7 @@ describe("buildReport", () => {
     screenshot: "failure.png",
   };
 
-  it("is ok when there is no failure and no issues", () => {
+  it("is pass (ok) when there is no failure and no issues", () => {
     const report = buildReport({
       name: "landing",
       video: "video.mp4",
@@ -138,10 +178,12 @@ describe("buildReport", () => {
       failure: null,
       issues: [],
     });
+    expect(report.status).toBe("pass");
     expect(report.ok).toBe(true);
+    expect(report.reason).toBeUndefined();
   });
 
-  it("is not ok when a failure is present, even without issues", () => {
+  it("is fail (not ok) when a failure is present, even without issues", () => {
     const report = buildReport({
       name: "landing",
       video: "video.mp4",
@@ -150,10 +192,11 @@ describe("buildReport", () => {
       failure,
       issues: [],
     });
+    expect(report.status).toBe("fail");
     expect(report.ok).toBe(false);
   });
 
-  it("is not ok when issues are present, even without a failure", () => {
+  it("is fail (not ok) when issues are present, even without a failure", () => {
     const report = buildReport({
       name: "landing",
       video: "video.mp4",
@@ -162,10 +205,11 @@ describe("buildReport", () => {
       failure: null,
       issues: [issue],
     });
+    expect(report.status).toBe("fail");
     expect(report.ok).toBe(false);
   });
 
-  it("is not ok when both a failure and issues are present", () => {
+  it("is fail (not ok) when both a failure and issues are present", () => {
     const report = buildReport({
       name: "landing",
       video: "video.mp4",
@@ -174,6 +218,30 @@ describe("buildReport", () => {
       failure,
       issues: [issue],
     });
+    expect(report.status).toBe("fail");
     expect(report.ok).toBe(false);
   });
+
+  it.each([
+    { failure: null, issues: [], desc: "no failure/issues" },
+    { failure, issues: [], desc: "a failure present" },
+    { failure: null, issues: [issue], desc: "issues present" },
+    { failure, issues: [issue], desc: "both present" },
+  ])(
+    "is inconclusive with a reason (never ok) when inconclusiveReason is set, overriding $desc",
+    ({ failure: f, issues: i }) => {
+      const report = buildReport({
+        name: "landing",
+        video: "",
+        scenarioType: "json",
+        steps: [],
+        failure: f,
+        issues: i,
+        inconclusiveReason: "net::ERR_CONNECTION_REFUSED",
+      });
+      expect(report.status).toBe("inconclusive");
+      expect(report.ok).toBe(false);
+      expect(report.reason).toBe("net::ERR_CONNECTION_REFUSED");
+    },
+  );
 });

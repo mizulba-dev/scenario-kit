@@ -30,9 +30,15 @@ export interface StepReportEntry {
   status: "ok" | "failed";
 }
 
+export type SmokeStatus = "pass" | "fail" | "inconclusive";
+
 export interface SmokeReport {
   name: string;
   ok: boolean;
+  // pass=退行なし / fail=退行検知 / inconclusive=環境起因で評価不能。ok は pass のときのみ true
+  status: SmokeStatus;
+  // inconclusive のときだけ設定する評価不能の理由
+  reason?: string;
   video: string;
   scenarioType: "json" | "ts";
   steps: StepReportEntry[];
@@ -54,6 +60,30 @@ export const classifyIssue = (response: HttpResponseInfo): "http-error" | null =
   response.status >= 400 && HTTP_ERROR_RESOURCE_TYPES.has(response.resourceType)
     ? "http-error"
     : null;
+
+// 接続確立自体に失敗した navigation を表す Chromium エラーマーカーの固定リスト。
+// `Timeout ... exceeded`（遅いアプリと落ちたサーバーを区別できない）は含めない
+const CONNECTION_ERROR_MARKERS: readonly string[] = [
+  "net::ERR_CONNECTION_REFUSED",
+  "net::ERR_CONNECTION_RESET",
+  "net::ERR_NAME_NOT_RESOLVED",
+  "net::ERR_ADDRESS_UNREACHABLE",
+  "net::ERR_CONNECTION_TIMED_OUT",
+];
+
+// Playwright の navigation 失敗メッセージの先頭に付く呼び出し元プレフィックス。goto の
+// 失敗は `page.goto: net::ERR_... at <url>` 形式で始まる（TS シナリオが生の Page から
+// frame 経由で navigate すると `frame.goto: ` になる）
+const NAVIGATION_ERROR_PREFIXES: readonly string[] = ["page.goto: ", "frame.goto: "];
+
+// navigation の失敗メッセージが接続クラスのエラーかを決定的に判定する。marker への単純な
+// includes だと、locator timeout の Call log にセレクタ文字列として marker が写り込むと
+// 誤検知するため、navigation 失敗の呼び出し元プレフィックス直後に marker が来る形に
+// アンカーする。最初のページ評価が成立する前にこれが起きた場合だけ inconclusive に読み替える
+export const isConnectionClassError = (message: string): boolean =>
+  NAVIGATION_ERROR_PREFIXES.some((prefix) =>
+    CONNECTION_ERROR_MARKERS.some((marker) => message.startsWith(`${prefix}${marker}`)),
+  );
 
 export const MAX_ISSUE_SHOTS_WITHOUT_STEP_INDEX = 10;
 
@@ -95,17 +125,52 @@ export interface BuildReportInput {
   steps: StepReportEntry[];
   failure: Failure | null;
   issues: Issue[];
+  // 指定されると failure/issues の有無に関わらず status="inconclusive" を優先する
+  inconclusiveReason?: string;
 }
 
-export const buildReport = (input: BuildReportInput): SmokeReport => ({
-  name: input.name,
-  ok: input.failure === null && input.issues.length === 0,
-  video: input.video,
-  scenarioType: input.scenarioType,
-  steps: input.steps,
-  failure: input.failure,
-  issues: input.issues,
-});
+export const buildReport = (input: BuildReportInput): SmokeReport => {
+  const status: SmokeStatus =
+    input.inconclusiveReason !== undefined
+      ? "inconclusive"
+      : input.failure === null && input.issues.length === 0
+        ? "pass"
+        : "fail";
+  return {
+    name: input.name,
+    ok: status === "pass",
+    status,
+    ...(input.inconclusiveReason !== undefined ? { reason: input.inconclusiveReason } : {}),
+    video: input.video,
+    scenarioType: input.scenarioType,
+    steps: input.steps,
+    failure: input.failure,
+    issues: input.issues,
+  };
+};
+
+// ブラウザ起動前のセットアップ失敗（ffmpeg 不在・ブラウザ/コンテキスト起動失敗）でも
+// out ディレクトリを作り直して inconclusive の report.json を必ず残す。exit code だけで
+// 理由が分からない状態を作らないための保証。reportPath を返す
+export const writeSetupFailureReport = (
+  dir: string,
+  input: { name: string; scenarioType: "json" | "ts"; reason: string },
+): string => {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const report = buildReport({
+    name: input.name,
+    video: "",
+    scenarioType: input.scenarioType,
+    steps: [],
+    failure: null,
+    issues: [],
+    inconclusiveReason: input.reason,
+  });
+  const reportPath = join(dir, "report.json");
+  writeFileSync(reportPath, JSON.stringify(report, null, 1));
+  return reportPath;
+};
 
 export interface SmokeOptions {
   dir: string;
@@ -170,6 +235,9 @@ export const startSmoke = async (options: SmokeOptions): Promise<SmokeSession> =
   let shotIndex = 0;
   // finish() 開始後に届くイベントを記録しないための受付停止フラグ
   let stopped = false;
+  // 最初のページ評価が成立したか（実ページへの framenavigated コミット）。接続クラス失敗を
+  // 「評価不能」に読み替えるのは、この成立が一度も起きていない場合に限る
+  let evaluated = false;
 
   const addIssue = (type: IssueType, message: string, pageUrl: string): void => {
     if (stopped) return;
@@ -236,6 +304,16 @@ export const startSmoke = async (options: SmokeOptions): Promise<SmokeSession> =
 
     await context.addInitScript(cursorInitScript());
     page = await context.newPage();
+    // メインフレームが実ページへコミットしたら「評価成立」とみなす。接続拒否時は
+    // load イベントも framenavigated も発火するが、コミット先が Chromium のエラーページ
+    // (chrome-error://) になるためこれを除外する。初期 about:blank も評価成立に数えない
+    const mainFrame = page.mainFrame();
+    page.on("framenavigated", (frame) => {
+      if (frame !== mainFrame) return;
+      const url = frame.url();
+      if (url === "about:blank" || url.startsWith("chrome-error://")) return;
+      evaluated = true;
+    });
   } catch (err) {
     // finish が呼び出し側に渡る前の失敗はここでしか後始末できない（Chromium リーク防止）
     await browser.close();
@@ -263,6 +341,12 @@ export const startSmoke = async (options: SmokeOptions): Promise<SmokeSession> =
       await Promise.all(pendingIssues);
 
       let failure: Failure | null = null;
+      // 最初の評価成立前の接続クラス失敗だけを「評価不能」に読み替える。評価成立後の
+      // ネットワーク断はアプリ退行の可能性を排除できないため fail のままにする
+      const inconclusiveReason =
+        failureMessage !== undefined && !evaluated && isConnectionClassError(failureMessage)
+          ? failureMessage
+          : undefined;
       if (failureMessage !== undefined) {
         const stepIndex = currentStepIndex;
         const entry =
@@ -319,6 +403,7 @@ export const startSmoke = async (options: SmokeOptions): Promise<SmokeSession> =
           steps: stepsLedger,
           failure,
           issues,
+          inconclusiveReason,
         });
         reportPath = join(dir, "report.json");
         writeFileSync(reportPath, JSON.stringify(report, null, 1));

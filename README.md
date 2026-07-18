@@ -221,6 +221,7 @@ in `shots`. The output directory is wiped and recreated on each run, and
 {
   "name": "landing",
   "ok": false,
+  "status": "fail",
   "video": "video.mp4",
   "scenarioType": "json",
   "steps": [{ "index": 0, "step": { "goto": "..." }, "status": "ok" }],
@@ -231,9 +232,23 @@ in `shots`. The output directory is wiped and recreated on each run, and
 }
 ```
 
-`ok` is `true` only when the scenario completed without a step failure and
-with zero issues. Exit code is `0` when `ok`, `2` otherwise — read
-`report.json` and the referenced screenshots to see what went wrong.
+`status` is one of `pass` / `fail` / `inconclusive`, and `ok` is `true` only
+for `pass` (kept for backward compatibility):
+
+- `pass` (exit `0`): the scenario completed without a step failure and with
+  zero detected issues.
+- `fail` (exit `2`): a step failed or at least one issue was detected — read
+  `report.json` and the referenced screenshots to see what went wrong.
+- `inconclusive` (exit `3`): the scenario could not be evaluated for an
+  environmental reason, so this is *not* an app regression. It covers setup
+  failures (`ffmpeg`/`ffprobe` missing, browser/context launch failure) and a
+  connection-class navigation failure (`net::ERR_CONNECTION_REFUSED`,
+  `ERR_CONNECTION_RESET`, `ERR_NAME_NOT_RESOLVED`, `ERR_ADDRESS_UNREACHABLE`,
+  `ERR_CONNECTION_TIMED_OUT`) that happened *before any page was successfully
+  evaluated* — typically a dev server that isn't running. A `reason` field
+  carries the underlying message. A connection failure *after* a page has
+  loaded, and a navigation/locator `Timeout ... exceeded`, both stay `fail`.
+  `report.json` is still written (even on a pre-launch failure).
 
 ## Commands
 
@@ -251,7 +266,9 @@ scenario-kit --help                   full command and steps reference
 ```
 
 Exit codes: `0` success, `1` invalid config/scenario, `2` runtime failure
-(browser, ffmpeg, or render error).
+(browser, ffmpeg, or render error). `smoke` additionally uses `2` for a
+detected app failure and `3` for an inconclusive run (environmental — see the
+Smoke section).
 
 ## AI agent skill
 

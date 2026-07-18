@@ -10,7 +10,7 @@ import { runInit } from "./lib/init";
 import { runLogin } from "./lib/login";
 import { runInstallSkill } from "./lib/install-skill";
 import { assertDarwinPlatform, startMacRecording } from "./lib/mac-recorder";
-import { startSmoke } from "./lib/smoke";
+import { startSmoke, writeSetupFailureReport, type SmokeSession } from "./lib/smoke";
 import { startRecording } from "./lib/recorder";
 import { renderDemo } from "./lib/render";
 import { loadScenario, type LoadedScenario } from "./lib/scenario-loader";
@@ -27,6 +27,7 @@ Usage:
   scenario-kit run <name>          record + render
   scenario-kit shots <name>        Capture PNG screenshots to scenario-kit/out/shots/<name>/ (no video, no ffmpeg)
   scenario-kit smoke <name>        Record + detect runtime issues, writing scenario-kit/out/smoke/<name>/{video.mp4,report.json,*.png}
+                                   report.json "status" and exit code agree: 0/pass, 2/fail, 3/inconclusive (environmental, not an app failure); 1 = usage error. Rare exception: a video-conversion failure exits 2 regardless of "status"
   scenario-kit login [url]         Open a browser to log in manually, then save the session (Playwright storageState) for logged-in recordings
   scenario-kit init                Scaffold scenario-kit/ (config.json + scenarios/landing.json) in the current project
   scenario-kit install-skill       Install the scenario-kit SKILL.md into .claude/skills/ and .agents/skills/
@@ -206,13 +207,25 @@ const runSmoke = async (args: string[]): Promise<number> => {
     : "ts";
   const loaded = await loadScenario(config.scenariosDir, name);
   if (loaded.kind === "app") {
-    // app シナリオの「未対応」判定（exit 1）を ffmpeg 不在チェック（exit 2）より先に行う
+    // app シナリオの「未対応」判定（exit 1）をセットアップの評価不能（exit 3）より先に行う
     throw new UserError(APP_SCENARIO_UNSUPPORTED_MESSAGE);
   }
-  assertFfmpegAvailable();
 
   const dir = join(config.outDir, "smoke", name);
-  const session = await startSmoke({ dir, name, storageState: config.storageState });
+
+  // ffmpeg 不在・ブラウザ起動失敗は環境起因の評価不能。ここで inconclusive の report を
+  // 残して exit 3 にする（ffmpeg 不在は record/render では exit 2 のままだが smoke だけ読み替える）
+  let session: SmokeSession;
+  try {
+    assertFfmpegAvailable();
+    session = await startSmoke({ dir, name, storageState: config.storageState });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    const reportPath = writeSetupFailureReport(dir, { name, scenarioType, reason });
+    console.error(`inconclusive: ${reason}`);
+    console.log(`report: ${reportPath}`);
+    return 3;
+  }
 
   let failureMessage: string | undefined;
   try {
@@ -231,7 +244,14 @@ const runSmoke = async (args: string[]): Promise<number> => {
   const { report, reportPath, videoPath } = await session.finish({ scenarioType, failureMessage });
   console.log(`smoke: ${videoPath}`);
   console.log(`report: ${reportPath}`);
-  return report.ok ? 0 : 2;
+  switch (report.status) {
+    case "pass":
+      return 0;
+    case "fail":
+      return 2;
+    case "inconclusive":
+      return 3;
+  }
 };
 
 // recordings/<name>-meta.json の driver で入力ファイルの種類を一意に決める（存在チェックの
